@@ -37,7 +37,7 @@
                     <p> {{model.description}} </p> 
                     <p style="zoom:0.7"> {{ model_metadata_to_str(model) }}</p>
                     <DownloadButton v-if="!(model.min_version) || model.min_version <= app.current_build_number" :app=app  :asset_details="model"> </DownloadButton>
-                    <p  style="color:red" v-if="model.min_version && model.min_version > app.current_build_number"> You need to update DiffusionBee to use this model</p>
+                    <p v-if="model.min_version && model.min_version > app.current_build_number">Not yet supported in DiffusionBee Extended. Choose a model with a Download button.</p>
                 </div> 
             </div>
 

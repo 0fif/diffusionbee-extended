@@ -48,5 +48,9 @@ The README advertises an advanced AI canvas, but the checked-in router has no ed
 - ESLint passes for the changed Vue components; `git diff --check` passes.
 - `npm run test:editor` uses the installed Electron 13 renderer and actual Vue components. It checks canvas pixels for scaled clicks, continuous strokes, inversion and restoration, plus native dimensions and interrupted mouse strokes. Mocked generation callbacks check guards, failed-job history, Discard, Retry, Undo/Redo, empty drops, and retry reset on a new image.
 - Inspected the rendered canvas and page controls in the isolated harness. The harness stubs the surrounding applet/backend and is not a full-app visual or accessibility test.
-- Real generation is **not verified**. Local startup lacks NumPy; the upstream `tensorflow==2.10.0` wheel is unavailable for this machine's native environment. No weights were downloaded and no new installer was produced.
-- Before an Extended release: verify the backend and model, separate app identity/data/update behavior, test export and outside-mask preservation end to end, then package a test build.
+- **Real SD 1.5 inpainting and Retry are now verified** with the official 2.5.3 Apple Silicon backend and its checksum-verified inpainting model. The source-only TensorFlow environment is still unresolved. See [development instructions](../electron_app/README.md) for the launch command, test inputs, and pixel-comparison results. No new installer was produced.
+- Before an Extended release: broaden model coverage beyond the verified SD 1.5 inpainting path, separate app identity/data/update behavior, test export and strict outside-mask preservation, then package a test build.
+
+## Catalog warning follow-up
+
+The live catalog uses minimum build numbers: many SDXL entries require 36, and Flux requires 40. This source frontend declares build 29; the official 2.5.3 bundle declares build 40. The old “update DiffusionBee” message is misleading for an independent fork, so it now states that these entries are not yet supported in Extended. The compatibility gate remains intact. No claim is made that changing a build number would implement those workflows.

@@ -10,7 +10,7 @@ This fork starts from upstream commit `daf82f8` (December 2023, source version 2
 - Add mask inversion to inpainting and image-to-image, plus image-to-image brush size.
 - Validate missing images and empty masks before starting inpainting.
 
-See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. Full generation and a packaged Extended release remain unverified.
+See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. SD 1.5 inpainting and Retry have now been verified with the official 2.5.3 release backend. A packaged Extended release remains unverified.
 
 The original project attribution and [AGPL-3.0 license](LICENSE) are retained. Model licenses are separate and continue to apply.
 

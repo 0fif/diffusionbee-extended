@@ -8,6 +8,7 @@
   "private": true,
   "scripts": {
     "test:editor": "electron tests/editor.cjs",
+    "electron:serve:release": "node scripts/serve-release.cjs",
     "serve": "vue-cli-service serve",
     "serve:ui": "vue-cli-service serve ./src/main_demoui.js",
     "build:ui": "vue-cli-service build ./src/main_demoui.js",
