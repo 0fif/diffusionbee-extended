@@ -26,14 +26,15 @@
         <template v-slot:output_workpace>
             <div>
                 <br> 
-                <div v-if="(redo_history.length > 0 ||  undo_history.length > 0) && is_mounted && stable_diffusion.is_input_avail" class="l_button" style="float:right " @click="do_redo" > Redo</div>
-                <div v-if="(redo_history.length > 0 ||  undo_history.length > 0)  && is_mounted && stable_diffusion.is_input_avail" class="l_button" style="float:right " @click="do_undo" > Undo</div>
+                <div v-if="redo_history.length > 0 && is_mounted && stable_diffusion.is_input_avail" class="l_button" style="float:right " @click="do_redo" > Redo</div>
+                <div v-if="undo_history.length > 0 && is_mounted && stable_diffusion.is_input_avail" class="l_button" style="float:right " @click="do_undo" > Undo</div>
                 <div class="l_button" style="float:right " @click="open_input_image" > Open </div>
                 <div  v-if="inp_img"  class="l_button" style="float:right "  @click="save_img" > Save </div>
-                <div v-if="inp_img"   class="l_button" style="float:right " @click="$refs.inp_img_canvas.clear_inpaint()" > Clear Mask</div>
+                <button v-if="inp_img" type="button" :disabled="!is_sd_active" class="l_button" style="float:right" @click="$refs.inp_img_canvas.clear_inpaint()">Clear Mask</button>
+                <button v-if="inp_img" type="button" :disabled="!is_sd_active" class="l_button" style="float:right" @click="$refs.inp_img_canvas.invert_inpaint()">Invert Mask</button>
 
                 <div v-if="is_mounted && stable_diffusion.is_input_avail && inp_img"   style="float:right ; margin-right: 10px" >
-                    <input v-model="stroke_size_no" style="zoom:0.8; margin-top: 7px; width:100px" type="range"
+                    <input aria-label="Brush size" v-model="stroke_size_no" style="zoom:0.8; margin-top: 7px; width:100px" type="range"
                             min="1" max="200" >                
                 </div>
                 <div v-if="is_mounted && stable_diffusion.is_input_avail && inp_img"   class="l_button no_hover_bg" style="float:right ; margin-right: -5px; " > Stroke Size</div>
@@ -42,7 +43,7 @@
             </div>
 
             <div class="inapint_container"  @drop.prevent="onDragFile" @dragover.prevent > 
-                <ImageCanvas style="cursor: crosshair;"  v-if="inp_img"  ref="inp_img_canvas" :is_inpaint="true" :image_source="inp_img"  :is_disabled="!stable_diffusion.is_input_avail" id="inpaint"  canvas_id="inpaintcan" canvas_d_id="inpaintcand" :stroke_size_no="stroke_size_no" ></ImageCanvas>
+                <ImageCanvas style="cursor: crosshair;"  v-if="inp_img"  ref="inp_img_canvas" :is_inpaint="true" :image_source="inp_img"  :is_disabled="!is_sd_active" id="inpaint"  canvas_id="inpaintcan" canvas_d_id="inpaintcand" :stroke_size_no="stroke_size_no" @image-error="app.show_toast('Could not open this image. Choose another file.')" ></ImageCanvas>
                 <div v-else @click="open_input_image" style=" "  :class="{ pointer_cursor  : is_sd_active }" >
                     <center>
                         <p style="padding-top: calc( 50vh - 115px);padding-bottom: calc( 50vh - 155px);  opacity: 70%;" >Click to add input image and draw a mask</p>
@@ -98,6 +99,7 @@ const Inpainting = {
             backend_error : "",
             is_mounted: false,
             is_stopping : false,
+            is_restoring: false,
             undo_history : [],
             redo_history : [],
             done_percentage: -1,
@@ -114,7 +116,7 @@ const Inpainting = {
         is_sd_active(){
             if(!this.is_mounted)
                 return false;
-            return this.stable_diffusion.is_input_avail;
+            return this.stable_diffusion.is_input_avail && !this.is_restoring;
         },
 
         required_assets(){
@@ -147,8 +149,17 @@ const Inpainting = {
     methods: {
         generate(is_retry){
 
-            if(!(this.stable_diffusion.is_input_avail))
+            if(!this.is_sd_active)
                 return;
+
+            if (!this.inp_img || !this.$refs.inp_img_canvas || !this.$refs.inp_img_canvas.is_ready) {
+                this.app.show_toast("Open an image and wait for it to load before generating.");
+                return;
+            }
+            if (!is_retry && !this.$refs.inp_img_canvas.is_something_drawn) {
+                this.app.show_toast("Draw a mask over the area you want to change.");
+                return;
+            }
 
             if(!this.$refs.basic_sd_applet.check_input_form_n_show_error()){
                 return
@@ -203,11 +214,11 @@ const Inpainting = {
 
             let that = this;
 
-            this.undo_history.push(img_url)
-            this.redo_history =  []
 
             let callbacks = {
                 on_img(img_path){
+                    that.undo_history.push(img_url)
+                    that.redo_history = []
                     that.$refs.inp_img_canvas.clear_inpaint()
                     that.inp_img = img_path.generated_img_path
                     that.is_post_generate_box_showing = true
@@ -227,16 +238,14 @@ const Inpainting = {
            
         }, 
 
-        retry_generatge(){
-            let that = this
-            this.inp_img = this.retry_params.img_url
-            setTimeout(function(){
-                that.$refs.inp_img_canvas.restore_mask(that.retry_mask_cached)
-            } , 150 ) 
-            this.generate(true)
+        async retry_generatge(){
+            if (!this.is_sd_active || !this.retry_params || !this.is_post_generate_box_showing) return;
+            await this.discard_generation();
+            this.generate(true);
         },
 
         do_undo(){
+            if (!this.is_sd_active) return;
             if(this.undo_history.length == 0)
                 return;
 
@@ -254,6 +263,7 @@ const Inpainting = {
         },
 
         do_redo(){
+            if (!this.is_sd_active) return;
             if(this.redo_history.length == 0)
                 return;
             this.is_post_generate_box_showing = false
@@ -269,26 +279,33 @@ const Inpainting = {
             
         },
 
-        discard_generation(){
-            this.inp_img = this.retry_params.img_url
-            let that = this;
-            setTimeout(function(){
-                that.$refs.inp_img_canvas.restore_mask(that.retry_mask_cached)
-            } , 150 ) 
-            this.is_post_generate_box_showing = false
-            
+        async discard_generation(){
+            if (!this.is_sd_active || !this.retry_params || !this.is_post_generate_box_showing) return;
+            this.is_restoring = true;
+            this.inp_img = this.retry_params.img_url;
+            this.undo_history.pop();
+            this.is_post_generate_box_showing = false;
+            try {
+                await this.$nextTick();
+                await this.$refs.inp_img_canvas.restore_mask(this.retry_mask_cached);
+            } finally {
+                this.is_restoring = false;
+            }
         },
 
         onDragFile(e) {
             if (!this.stable_diffusion.is_input_avail)
                 return;
-            if (!e.dataTransfer.files[0].type.startsWith('image/'))
+            if (!e.dataTransfer.files[0] || !e.dataTransfer.files[0].type.startsWith('image/'))
                 return;
             let img_path = e.dataTransfer.files[0].path;
             this.set_inp_image(img_path)
         },
 
         set_inp_image(img_path){
+            if (!this.is_sd_active) return;
+            this.retry_params = undefined
+            this.retry_mask_cached = undefined
             this.is_post_generate_box_showing = false
             this.inp_img = img_path;
             this.undo_history = []
@@ -317,6 +334,7 @@ const Inpainting = {
         }, 
 
         clear_canvas(){
+            if (!this.is_sd_active) return;
             this.is_post_generate_box_showing = false
             if(this.$refs.inp_img_canvas){
                 this.$refs.inp_img_canvas.clear_inpaint()
@@ -331,6 +349,7 @@ const Inpainting = {
         },
 
         save_img(){
+            if (!this.is_sd_active || !this.$refs.inp_img_canvas.is_ready) return;
             let out_path = window.ipcRenderer.sendSync('save_dialog' );
             if(!out_path)
                 return

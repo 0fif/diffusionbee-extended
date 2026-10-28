@@ -3,7 +3,7 @@
    <div>
 
         <div v-if="form_values[config.id]" @drop.prevent="onDragFile" @dragover.prevent class="image_area" :class="{ crosshair_cur  : is_inpaint }"  style="height: 300px;  border-radius: 5px; padding:5px;">
-            <ImageCanvas :on_img_load="on_img_load" ref="inp_img_canvas" :is_inpaint="is_inpaint" :image_source="form_values[config.id]"  :is_disabled="false"  :canvas_id="rand_id" :canvas_d_id="rand_id+'d' "  ></ImageCanvas>
+            <ImageCanvas :on_img_load="on_img_load" ref="inp_img_canvas" :is_inpaint="is_inpaint" :image_source="form_values[config.id]"  :is_disabled="!is_input_avail" :stroke_size_no="stroke_size_no"  :canvas_id="rand_id" :canvas_d_id="rand_id+'d' "  ></ImageCanvas>
         </div>
         <div v-else @drop.prevent="onDragFile" @dragover.prevent @click="open_input_image" class="image_area" :class="{ pointer_cursor  : is_input_avail }" style="height:150px;  border-radius: 5px; padding:5px;">
                 <center>
@@ -15,6 +15,11 @@
         <div v-if="form_values[config.id] && is_input_avail" class="l_button" @click="form_values[config.id] =''">Clear</div>
         <div v-if="form_values[config.id] && config.draw_mask && is_input_avail && !is_inpaint" class="l_button" @click="is_inpaint = !is_inpaint ">Draw Mask</div>
         <div v-if="form_values[config.id] && config.draw_mask && is_input_avail && is_inpaint" class="l_button" @click="is_inpaint = !is_inpaint ">Remove Mask</div>
+
+        <template v-if="form_values[config.id] && is_inpaint && is_input_avail">
+            <button type="button" class="l_button" @click="$refs.inp_img_canvas.invert_inpaint()">Invert Mask</button>
+            <label>Brush size <input type="range" min="1" max="200" v-model="stroke_size_no"></label>
+        </template>
 
         <br v-if="form_values[config.id] && is_input_avail"> 
 
@@ -52,6 +57,7 @@ export default {
     data() {
         return {
             is_inpaint: false,
+            stroke_size_no: "35",
             is_input_avail: true,
             icon_library:icon_library,
             rand_id:  Math.random().toString()
@@ -68,7 +74,7 @@ export default {
         },
         onDragFile(e){
            
-            if(!e.dataTransfer.files[0].type.startsWith('image/'))
+            if(!e.dataTransfer.files[0] || !e.dataTransfer.files[0].type.startsWith('image/'))
                 return;
             let img_path = e.dataTransfer.files[0].path;
             if(img_path && img_path != 'NULL'){

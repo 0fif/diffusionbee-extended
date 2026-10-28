@@ -1,4 +1,21 @@
-# Diffusion Bee - Stable Diffusion GUI App for MacOS
+# DiffusionBee Extended
+An independent fork of [DiffusionBee by Divam Gupta](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui), focused on reliable image editing and inpainting.
+
+This fork starts from upstream commit `daf82f8` (December 2023, source version 2.3.0). It is **not** the source of the newer upstream 2.5.x binaries. No Extended installer has been released yet; the download links below refer to upstream.
+
+## Initial work
+
+- Fix mask clicks landing away from the cursor and gaps in fast brush strokes.
+- Restore masks after image loading on Retry/Discard; keep failed jobs out of undo history.
+- Add mask inversion to inpainting and image-to-image, plus image-to-image brush size.
+- Validate missing images and empty masks before starting inpainting.
+
+See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. Full generation and a packaged Extended release remain unverified.
+
+The original project attribution and [AGPL-3.0 license](LICENSE) are retained. Model licenses are separate and continue to apply.
+
+## Upstream project information
+
 [![Twitter](https://img.shields.io/twitter/url.svg?label=Follow%20%40divamgupta&style=social&url=https%3A%2F%2Ftwitter.com%2Fdivamgupta)](https://twitter.com/divamgupta)
 
 

@@ -1,13 +1,11 @@
 <template>
     <div style="height:100% ; width:100%; position:  relative;">
-        <img  @load="on_img_load2" :id="canvas_d_id+'img'" :src="'file://'+image_source" style="display:none">
-        <canvas :id="canvas_d_id" style="width:100% ; height:100%; position: absolute ; top:0 , left:0  " ></canvas>
-        <canvas :id="canvas_id" style="width:100% ; height:100%; position: absolute ; top:0 , left:0 ; opacity:0.7" ></canvas>
+        <canvas :id="canvas_d_id" style="width:100% ; height:100%; position: absolute ; top:0; left:0  " ></canvas>
+        <canvas :id="canvas_id" style="width:100% ; height:100%; position: absolute ; top:0; left:0 ; opacity:0.7" ></canvas>
        
    </div>
 </template>
 <script>
-import Vue from 'vue'
 
 function addImageProcess(src){
   return new Promise((resolve, reject) => {
@@ -65,10 +63,12 @@ export default {
     },
     beforeDestroy(){
         this.ro.disconnect()
+        this.image_load_id = (this.image_load_id || 0) + 1
     },
     data() {
         return {
             img_tag : undefined,
+            is_ready: false,
             prevX : 0 , 
             prevY : 0 , 
             currX : 0 , 
@@ -90,67 +90,57 @@ export default {
 
         findxy(res, e) {
 
-            if(!(this.is_inpaint))
+            if (res == 'up' || res == 'out') {
+                this.flag = false;
+                return;
+            }
+            if (!this.is_inpaint || this.is_disabled || !this.is_ready)
                 return;
 
-            if(this.is_disabled)
-                return;
-
+            const rect = this.canvas.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const x = (e.clientX - rect.left) * this.canvas.width / rect.width;
+            const y = (e.clientY - rect.top) * this.canvas.height / rect.height;
             if (res == 'down') {
+                if (e.button !== 0) return;
+                this.prevX = this.currX = x;
+                this.prevY = this.currY = y;
+                this.flag = true;
+                this.draw();
+            } else if (res == 'move' && this.flag) {
+                if (e.buttons !== 1) {
+                    this.flag = false;
+                    return;
+                }
                 this.prevX = this.currX;
                 this.prevY = this.currY;
-                this.currX = e.clientX - this.canvas.getBoundingClientRect().x;
-                this.currY = e.clientY - this.canvas.getBoundingClientRect().y;
-        
-                this.flag = true;
-                let dot_flag = true;
-                if (dot_flag) {
-                    this.ctx.beginPath();
-                    this.ctx.fillStyle = this.stroke_color;
-                    this.ctx.fillRect(this.currX, this.currY, 2, 2);
-                    this.ctx.closePath();
-                    dot_flag = false;
-                }
-            }
-            if (res == 'up' || res == "out") {
-                this.flag = false;
-            }
-            if (res == 'move') {
-                if (this.flag) {
-                    this.prevX = this.currX;
-                    this.prevY = this.currY;
-                    this.currX = e.clientX - this.canvas.getBoundingClientRect().x;
-                    this.currY = e.clientY - this.canvas.getBoundingClientRect().y;
-                    this.draw();
-                }
+                this.currX = x;
+                this.currY = y;
+                this.draw();
             }
         },
 
         draw() {
-            if(this.is_disabled)
-                return;
-
-            let xmul =  this.canvas.width / this.canvas.offsetWidth;
-            let ymul = this.canvas.height / this.canvas.offsetHeight;
-            // this.ctx.beginPath();
-            // this.ctx.moveTo(this.prevX*xmul, this.prevY*ymul  );
-            // this.ctx.lineTo(this.currX*xmul, this.currY*ymul );
-            // this.ctx.strokeStyle = this.x;
-            // this.ctx.lineWidth = this.y * Math.sqrt(xmul * ymul);
-            // this.ctx.stroke();
-            // this.ctx.closePath();
-
+            const rect = this.canvas.getBoundingClientRect();
+            const radius = this.stroke_size * Math.sqrt(
+                this.canvas.width / rect.width * this.canvas.height / rect.height);
+            this.ctx.fillStyle = this.stroke_color;
+            this.ctx.strokeStyle = this.stroke_color;
+            this.ctx.lineWidth = radius * 2;
+            this.ctx.lineCap = 'round';
             this.ctx.beginPath();
-            this.ctx.arc(this.prevX*xmul, this.prevY*ymul , this.stroke_size* Math.sqrt(xmul * ymul), 0, 2 * Math.PI);
-            this.ctx.arc((this.prevX+this.currX)*xmul/2, (this.prevY+this.currY)*ymul/2 , this.stroke_size* Math.sqrt(xmul * ymul), 0, 2 * Math.PI);
-            this.ctx.arc(this.currX*xmul, this.currY*ymul , this.stroke_size* Math.sqrt(xmul * ymul), 0, 2 * Math.PI);
+            this.ctx.moveTo(this.prevX, this.prevY);
+            this.ctx.lineTo(this.currX, this.currY);
+            this.ctx.stroke();
+            // A click with no movement must paint the same brush as a drag.
+            this.ctx.beginPath();
+            this.ctx.arc(this.currX, this.currY, radius, 0, 2 * Math.PI);
             this.ctx.fill();
-            this.is_something_drawn = true
-
+            this.is_something_drawn = true;
         },
 
         get_size(){
-            let img =  document.getElementById(this.canvas_d_id+"img")
+            let img = this.img_tag
             return {width: img.width ,height: img.height }
         },
 
@@ -201,31 +191,41 @@ export default {
             let canvas = document.getElementById(this.canvas_id);
             let ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            this.is_something_drawn = false 
+            this.is_something_drawn = false
+            this.flag = false
+        },
+        invert_inpaint(){
+            if (this.is_disabled || !this.is_ready) return;
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'xor';
+            this.ctx.fillStyle = this.stroke_color;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.restore();
+            this.is_something_drawn = this.ctx.getImageData(0, 0,
+                this.canvas.width, this.canvas.height).data.some((v, i) => i % 4 == 3 && v > 0);
         },
         on_img_change(){
-            let that = this;
-            addImageProcess('file://'+this.image_source).then(function(img_tag){
-
-                that.img_tag = img_tag;
-                let canvasD = document.getElementById(that.canvas_d_id);
-                let canvas = document.getElementById(that.canvas_id);
-                let img = that.img_tag;
-                let ctxD = canvasD.getContext("2d");
-                
-                that.on_resize()
-
-                canvasD.height = img.height;
-                canvasD.width = img.width;
-                canvas.height = img.height;
-                canvas.width = img.width;
-
-                ctxD.clearRect(0, 0, canvasD.width, canvasD.height);
-                ctxD.drawImage(img, 0,0, img.width, img.height, 0,0, canvasD.width, canvasD.height);
-
-                that.clear_inpaint()
-
-            })
+            const load_id = this.image_load_id = (this.image_load_id || 0) + 1;
+            this.is_ready = false;
+            this.clear_inpaint();
+            const source = this.image_source.startsWith('file://') ? this.image_source :
+                'file://' + this.image_source.split('/').map(encodeURIComponent).join('/');
+            this.image_loaded = addImageProcess(source).then(img => {
+                if (load_id !== this.image_load_id) return;
+                this.img_tag = img;
+                this.on_resize();
+                this.canvasD.height = this.canvas.height = img.height;
+                this.canvasD.width = this.canvas.width = img.width;
+                this.canvasD.getContext('2d').drawImage(img, 0, 0);
+                this.is_ready = true;
+                this.on_img_load2();
+            }).catch(() => {
+                if (load_id !== this.image_load_id) return;
+                this.img_tag = undefined;
+                this.canvasD.getContext('2d').clearRect(0, 0, this.canvasD.width, this.canvasD.height);
+                this.$emit('image-error');
+            });
+            return this.image_loaded;
         },
         get_img_b64(){
             return this.canvasD.toDataURL();
@@ -258,15 +258,16 @@ export default {
             return this.canvas.toDataURL();
         },
        
-       restore_mask(mask_b64){
-            let canvas = this.canvas;
-            let ctx =  canvas.getContext("2d");
-            
-            var image = new Image();
-            image.onload = function() {
-                ctx.drawImage(image, 0, 0);
-            };
-            image.src = mask_b64
+       async restore_mask(mask_b64){
+            // Wait for Vue's source watcher and the actual image, never a timer.
+            await this.$nextTick();
+            const load_id = this.image_load_id;
+            await this.image_loaded;
+            const image = await addImageProcess(mask_b64);
+            if (load_id !== this.image_load_id || !this.is_ready) return;
+            this.clear_inpaint();
+            this.ctx.drawImage(image, 0, 0);
+            this.is_something_drawn = true;
         }
     },
 
@@ -274,7 +275,7 @@ export default {
         'image_source': {
 
             handler: function() {
-                Vue.nextTick(this.on_img_change)
+                this.on_img_change()
                 // this.on_img_change()
             },
             deep: true
