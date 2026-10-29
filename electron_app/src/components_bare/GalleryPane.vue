@@ -30,13 +30,17 @@ export default {
     },
     components: {GalleryImage},
     mounted() {
-        this.ro = new ResizeObserver(this.on_resize);
+        this.ro = new ResizeObserver(() => {
+            cancelAnimationFrame(this.resize_frame);
+            this.resize_frame = requestAnimationFrame(this.on_resize);
+        });
         this.ro.observe( document.getElementById(this.rand_id) );
         this.on_resize()
     },
     
     beforeDestroy(){
         this.ro.disconnect()
+        cancelAnimationFrame(this.resize_frame)
     },
 
     computed: {
@@ -69,6 +73,10 @@ export default {
     },
 
     watch: {
+        n_imgs: 'on_resize',
+        img_w: 'on_resize',
+        img_h: 'on_resize',
+        always_fixed_col_size: 'on_resize',
         'image_data': {
             handler: function() {
                 this.on_resize()
@@ -83,8 +91,15 @@ export default {
 
             // let pane_h = document.getElementById(this.rand_id).offsetHeight
             let pane_w = document.getElementById(this.rand_id).offsetWidth
-            let th = parseInt(getComputedStyle(document.body).getPropertyValue('--titlebar-height'))
+            let th = parseInt(getComputedStyle(document.body).getPropertyValue('--titlebar-height')) || 0
             let pane_h =  window.innerHeight - 30 - th;
+
+            // Hidden tabs have zero width. Height changes caused by this layout
+            // must not trigger another layout write with identical inputs.
+            if (!pane_w || pane_h <= 0 || !this.n_imgs || !this.img_w || !this.img_h) return;
+            const layoutKey = [pane_w, pane_h, this.n_imgs, this.img_w, this.img_h, this.always_fixed_col_size].join(':');
+            if (layoutKey === this.last_layout_key) return;
+            this.last_layout_key = layoutKey;
 
             let parent_aspect_ratio = (pane_h / pane_w);
 

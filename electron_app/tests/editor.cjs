@@ -125,6 +125,25 @@ async function run(root) {
   assert.equal(xlOptions.img_width,1024);assert.equal(xlOptions.img_height,1024);
   assert.equal(xlOptions.force_use_given_size,true);assert.equal(xlOptions.input_image_strength,80);
 
+  const gallerySource=compiler.parseComponent(fs.readFileSync(path.join(root,'src/components_bare/GalleryPane.vue'),'utf8'));
+  const gallery=new Function('GalleryImage',gallerySource.script.content.replace(/^import .*$/gm,'').replace('export default','return'))({template:'<div style="height:200px"/>'});
+  gallery.template=gallerySource.template.content;
+  const galleryHost=document.createElement('div');galleryHost.style.cssText='width:600px;display:none';document.body.appendChild(galleryHost);
+  const galleryVm=new Vue({render:h=>h(gallery,{ref:'gallery',props:{n_imgs:1,img_w:1024,img_h:768,image_data:[{job_id:'test'}],always_fixed_col_size:300}})}).$mount();
+  galleryHost.appendChild(galleryVm.$el);
+  const pane=galleryVm.$refs.gallery;
+  pane.on_resize();assert.equal(pane.last_layout_key,undefined,'hidden gallery does not compute a zero-width grid');
+  const resizeErrors=[];const catchResize=e=>{if(e.message.includes('ResizeObserver'))resizeErrors.push(e.message)};
+  window.addEventListener('error',catchResize);
+  for(const width of [600,420,800,600]){
+    galleryHost.style.display='block';galleryHost.style.width=width+'px';
+    await new Promise(resolve=>setTimeout(resolve,50));
+    pane.on_resize();const stableStyle=pane.inner_pane_style;pane.on_resize();
+    assert.strictEqual(pane.inner_pane_style,stableStyle,'unchanged gallery layout does not write reactive styles');
+  }
+  assert.equal(resizeErrors.length,0,'gallery resizing does not trigger ResizeObserver loop errors');
+  window.removeEventListener('error',catchResize);galleryVm.$destroy();galleryHost.remove();
+
   const pageSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/pages/Inpainting.vue'), 'utf8'));
   const basicSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/components/BasicSDApplet.vue'), 'utf8'));
   const basicComponent = new Function('Form','TwoColAppletLayout','DownloadButton','Vue','apply_model_options','model_available','find_in_form_recursive',
