@@ -20,6 +20,7 @@
                     <p> {{model.description}} </p> 
                     <p style="zoom:0.7"> {{ model_metadata_to_str(model) }}</p>
                     <DownloadButton :app=app  :asset_details="model"> </DownloadButton>
+                    <button v-if="model.status === 'done' && model_available(model, app.backend_info) && (!model.model_meta_data || ['sd_model','flux_nnc'].includes(model.model_meta_data.type))" class="model-use" @click="use_model(model)">Use in Text to image</button>
                 </div> 
             </div>
 
@@ -29,6 +30,7 @@
 
 
         <h2> Available Models </h2>
+        <p v-if="catalog_error" role="status">{{catalog_error}}</p>
         <div class="icon_container">
 
             <div v-for="model in not_downloaded_models_list" :key="model.id" class="model_card" v-bind:style="{ 'background-image': 'url(' + (model.img_url || default_img_url) + ')' }">
@@ -36,8 +38,8 @@
                     <h2> {{model.title || model.id}} </h2> 
                     <p> {{model.description}} </p> 
                     <p style="zoom:0.7"> {{ model_metadata_to_str(model) }}</p>
-                    <DownloadButton v-if="!(model.min_version) || model.min_version <= app.current_build_number" :app=app  :asset_details="model"> </DownloadButton>
-                    <p v-if="model.min_version && model.min_version > app.current_build_number">Not yet supported in DiffusionBee Extended. Choose a model with a Download button.</p>
+                    <DownloadButton v-if="model_available(model, app.backend_info)" :app=app  :asset_details="model"> </DownloadButton>
+                    <p v-if="!model_available(model, app.backend_info)">This model needs the newer Apple Silicon backend. Launch Extended with the official release backend.</p>
                 </div> 
             </div>
 
@@ -53,6 +55,7 @@
 <script>
 
 import Vue from 'vue'
+import {model_available} from '../utils/model_compatibility.js'
 
 import DownloadButton from "../components/DownloadButton.vue"
 import MoonLoader from 'vue-spinner/src/MoonLoader.vue'
@@ -70,6 +73,7 @@ const ModelStore ={
             is_local_model_importing : false, 
             default_img_url : require("../assets/imgs/page_icon_imgs/default.png"),
             models_list : [], 
+            catalog_error: '',
         };
     },
     computed: {
@@ -85,21 +89,32 @@ const ModelStore ={
         } , 
         not_downloaded_models_list(){
             let that = this
-            return this.models_list.filter(model  => !(that.app.is_mounted && that.app.assets_manager.downloaded_assets[model.id]))
+            return this.models_list.filter(model  => !(that.app.is_mounted && that.app.assets_manager.all_avail_assets[model.id]))
         }
     },
     methods: {
+        model_available,
+        use_model(model){
+            const page = 'Txt2Img';
+            this.app.functions.switch_page(page);
+            this.$nextTick(() => {
+                const target = this.app.$refs.router.$refs[page][0].$refs.sd_applet;
+                this.$set(target.sd_options, 'selected_sd_model', model.id);
+            });
+        },
         load_models_list_from_web(){
             let that = this;
 
             let user_id = window.ipcRenderer.sendSync('get_instance_id' , '');
+            this.catalog_error = '';
             let models_url = "https://models.diffusionbee.com/list_models?user_id="+user_id;
             
             fetch(models_url, {cache: "no-store"})
-                .then(response => response.json())
-                .then(data =>  that.models_list = (data || that.models_list) )
+                .then(response => { if (!response.ok) throw new Error('catalog unavailable'); return response.json(); })
+                .then(data => { if (!Array.isArray(data)) throw new Error('invalid catalog'); that.models_list = data; })
                 .then(() => console.log(that.models_list))
-                .then(() =>  that.save_models_list_local_storage() )
+                .then(() => that.save_models_list_local_storage())
+                .catch(() => { that.catalog_error = 'Could not refresh models. Check your connection and try Refresh.'; })
 
             
         } ,     
@@ -107,9 +122,9 @@ const ModelStore ={
         load_models_list_local_storage(){
             let models = window.localStorage.getItem("models_store")
             if(models){
-                models = JSON.parse(models)
+                try { models = JSON.parse(models) } catch (_) { models = [] }
             }
-            Vue.set(this , 'models_list' , models)
+            Vue.set(this , 'models_list' , Array.isArray(models) ? models : [])
         } , 
 
         save_models_list_local_storage(){
@@ -199,6 +214,7 @@ ModelStore.sidebar_show = "always"
 <style>
 </style>
 <style scoped>
+.model-use {background:var(--color-bg);color:var(--text-color-solid);border:1px solid var(--border-color-invert);border-radius:5px;padding:5px 8px;font-size:12px;}
 
 .main_container{
     padding: 20px;

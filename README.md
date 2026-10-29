@@ -3,14 +3,16 @@ An independent fork of [DiffusionBee by Divam Gupta](https://github.com/divamgup
 
 This fork starts from upstream commit `daf82f8` (December 2023, source version 2.3.0). It is **not** the source of the newer upstream 2.5.x binaries. No Extended installer has been released yet; the download links below refer to upstream.
 
-## Initial work
+## Editor and model improvements
 
 - Fix mask clicks landing away from the cursor and gaps in fast brush strokes.
 - Restore masks after image loading on Retry/Discard; keep failed jobs out of undo history.
-- Add mask inversion to inpainting and image-to-image, plus image-to-image brush size.
+- Add zoom, pan, brush/eraser/rectangle selection, mask undo/redo, and a generative-fill prompt with Compare/Keep/Discard/Try again.
+- Composite edits at original resolution while preserving unmasked pixels.
+- Restore SDXL and Flux model handling with a compatible release backend; select Flux in Text to image.
 - Validate missing images and empty masks before starting inpainting.
 
-See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. SD 1.5 inpainting and Retry have now been verified with the official 2.5.3 release backend. A packaged Extended release remains unverified.
+See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. SD 1.5 inpainting/Retry, JuggernautXL text-to-image, and Flux Schnell text-to-image have been verified with the official 2.5.3 release backend. A packaged Extended release remains unverified.
 
 The original project attribution and [AGPL-3.0 license](LICENSE) are retained. Model licenses are separate and continue to apply.
 

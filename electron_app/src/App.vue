@@ -72,6 +72,8 @@ export default
 
     mounted() {
         this.app = this;
+        window.ipcRenderer.invoke('backend_info').then(info => { this.backend_info = info; })
+            .catch(err => console.warn('Backend identity unavailable:', err.message));
         window.app = this.app; // so that we can access from console
         this.stable_diffusion = this.$refs.stable_diffusion;
         this.stable_diffusion_manager = this.$refs.sd_manager;
@@ -243,6 +245,7 @@ export default
 
         return {
             current_build_number : Number(require('../package.json').build_number), 
+            backend_info: {build: 29, version: 'source', modern_models: false},
             all_pages_ready: false, // set to true by PagesRouter
             is_mounted : false, // set when app is mounted
             functions: {},

@@ -7,6 +7,8 @@ var py_buffer = "";
 var is_app_closing = false;
 
 var last_few_err = ""
+let renderer_ready = false;
+const initial_state = new Map();
 
 let RESTART_BACKEND_ON_CLOSE = false
 
@@ -19,7 +21,7 @@ function start_bridge() {
 
     let script_path = process.env.PY_SCRIPT || "../backends/stable_diffusion/diffusionbee_backend.py"; 
     let bin_path =  process.env.BIN_PATH;
-    if(bin_path && (fs.existsSync(script_path))){
+    if(bin_path){
         python = require('child_process').spawn( bin_path );
     }
     else if (fs.existsSync(script_path)) {
@@ -45,24 +47,16 @@ function start_bridge() {
            
         
 
-        if (win) {
-
-            py_buffer += data.toString('utf8');
-
-            let splitted = py_buffer.split("\n")
-
-            if( splitted.length > 1 ){
-                for (var i = 0; i < splitted.length -1 ; i++) {
-                    if (splitted[i].length > 0)
-                        if(win && !is_app_closing )
-                            win.webContents.send('to_renderer', 'py2b ' + splitted[i]);
-                }
-            }
-
-            py_buffer = splitted[ splitted.length - 1  ];
-
-        } else {
-            console.log("window not binded yet, got from py : " + data.toString('utf8'))
+        py_buffer += data.toString('utf8');
+        const lines = py_buffer.split('\n');
+        py_buffer = lines.pop();
+        for (const line of lines) {
+            // The backend can register its tools before the renderer is listening.
+            if (line.startsWith('utds registered_ext_applets.'))
+                initial_state.set(line.split('___U_P_D_A_T_E___')[0], line);
+            if (line === 'sdbk mdld') initial_state.set('model_loaded', line);
+            if (renderer_ready && win && !is_app_closing && line)
+                win.webContents.send('to_renderer', 'py2b ' + line);
         }
 
     });
@@ -120,6 +114,10 @@ function start_bridge() {
 
 ipcMain.on('to_python_sync', (event, arg) => {
     if (python) {
+        if (arg === 'strt') {
+            renderer_ready = true;
+            for (const line of initial_state.values()) event.sender.send('to_renderer', 'py2b ' + line);
+        }
         event.returnValue = "ok";
         // console("sending to py from  main " + arg )
         python.stdin.write("b2py " + arg.toString() + "\n")

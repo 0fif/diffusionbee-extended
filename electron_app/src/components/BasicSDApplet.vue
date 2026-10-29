@@ -33,6 +33,7 @@ import Form from "../components_bare/Form.vue"
 import TwoColAppletLayout from "../components_bare/TwoColAppletLayout.vue"
 import DownloadButton from "./DownloadButton.vue"
 import Vue from 'vue'
+import {apply_model_options, model_available} from '../utils/model_compatibility.js'
 import {find_in_form_recursive} from "../utils.js"
 
 function prep_sd_options(options){
@@ -142,10 +143,17 @@ export default {
                 }
             }
 
-            return options
+            const selected = this.app.assets_manager.get_downloaded_asset(options.selected_sd_model) || {};
+            return apply_model_options(options, selected.model_meta_data)
         } , 
 
         check_input_form_n_show_error(){
+            const selected = this.app.assets_manager.get_downloaded_asset(this.sd_options.selected_sd_model);
+            if (selected && !model_available(selected, this.app.backend_info)) {
+                this.app.show_toast('This model needs the newer Apple Silicon backend.');
+                return false;
+            }
+
             if(this.to_download_left.length > 0){
                 this.app.show_toast("First you need to download the model to generate")
                 return false;
@@ -167,6 +175,12 @@ export default {
             return true;
         },
 
+    },
+    watch: {
+        'sd_options.selected_sd_model'(id) {
+            const meta = (this.app.assets_manager.get_downloaded_asset(id) || {}).model_meta_data || {};
+            this.$set(this.sd_options, 'num_steps', meta.sd_type === 'flux_schnell' ? 4 : 25);
+        }
     },
     computed : {
         all_tags(){
@@ -192,6 +206,16 @@ export default {
                 }
             }
 
+            const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
+            if (metadata.type === 'flux_nnc' || metadata.sd_type === 'sdxl_base') {
+                const controlnet = find_in_form_recursive('controlnet_acc', form);
+                if (controlnet) controlnet.exclude_in = [...(controlnet.exclude_in || []), ...(this.form_tags || [])];
+            }
+            if (metadata.type === 'flux_nnc') {
+                const negative = find_in_form_recursive('negative_prompt', form);
+                if (negative) negative.exclude_in = [...(negative.exclude_in || []), ...(this.form_tags || [])];
+            }
+
             // get the functions to get the mask and stuff
             el =  find_in_form_recursive( "input_img" , form)
             if(el && el.draw_mask && el.store_masked_image){
@@ -202,7 +226,7 @@ export default {
             // for SDXL make sure that we only allow certain schedulers ( disabled for now )
             // if(this.sd_options && this.sd_options.selected_sd_model){
             //     let selected_asset =  this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model  ]
-            //     if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && selected_asset.model_meta_data.sd_type == "sdxl_base"  ){
+            //     if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc")  ){
             //         let el2 = find_in_form_recursive( "scheduler" , form)
             //         if(el2){
             //             el2['default_value'] = "karras"
@@ -216,7 +240,7 @@ export default {
             // for sdxl make use different image sizes
             if(this.sd_options && this.sd_options.selected_sd_model){
                 let selected_asset =  this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model  ]
-                if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && selected_asset.model_meta_data.sd_type == "sdxl_base"  ){
+                if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc")  ){
                     let el2 = find_in_form_recursive( "img_width" , form)
                     if(el2){
                         el2['default_value'] = 768

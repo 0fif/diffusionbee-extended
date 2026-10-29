@@ -21,6 +21,21 @@ console.log(require('os').freemem()/(1000000000) + " Is the free memory")
 console.log(require('os').totalmem()/(1000000000) + " Is the total memory")
 
 
+// Read the backend bundle's own identity rather than pretending the source UI is newer.
+ipcMain.handle('backend_info', () => {
+    const fs = require('fs');
+    const backend = process.env.BIN_PATH;
+    let info = {build: 29, version: 'source', modern_models: false};
+    if (backend) {
+        try {
+            const metadata = JSON.parse(fs.readFileSync(path.join(path.dirname(backend), '../app.asar/package.json'), 'utf8'));
+            const build = Number(metadata.build_number);
+            info = {build, version: metadata.version, modern_models: build >= 40 && process.platform === 'darwin' && process.arch === 'arm64'};
+        } catch (err) { console.warn('Could not identify backend bundle:', err.message); }
+    }
+    return info;
+});
+
 ipcMain.on('save_dialog', (event, ...args) => {
 
     const filename = args[0] ? args[0] : "Untitled"

@@ -2,6 +2,8 @@
 
 function inpaint_assets(self , mode ){
     let to_download = []
+    const metadata = (self.app.assets_manager.all_avail_assets[self.sd_options.selected_sd_model] || {}).model_meta_data || {};
+    if (metadata.sd_type === 'sdxl_base') return to_download;
     if((!self.sd_options.selected_sd_model) || self.sd_options.selected_sd_model == "SD1.5_Inpainting"){
         to_download.push( { 
             id : "SD1.5_Inpainting", 
@@ -36,6 +38,16 @@ function inpaint_assets(self , mode ){
 }
 
 function prep_sd_optins(self , sd_options_object, mode , img_mask_url){
+    const metadata = (self.app.assets_manager.all_avail_assets[self.sd_options.selected_sd_model] || {}).model_meta_data || {};
+    if (metadata.sd_type === 'sdxl_base') {
+        sd_options_object.num_imgs = 1;
+        sd_options_object.sd_mode_override = 'img2img';
+        sd_options_object.input_image_strength = Number(self.sd_options.input_image_strength || 0.85);
+        sd_options_object.do_masking_diffusion = true;
+        sd_options_object.mask_image_path = img_mask_url;
+        sd_options_object.get_mask_from_image_alpha = false;
+        return;
+    }
     if(!sd_options_object.num_imgs)
         sd_options_object.num_imgs = 1
 

@@ -24,15 +24,19 @@ DIFFUSIONBEE_APP=/Applications/DiffusionBee.app npm run electron:serve:release
 
 The official Apple Silicon **2.5.3** app bundle was tested on this machine. Its bundled Python runtime and native Apple GPU libraries avoid the old source backend's TensorFlow setup. Obtain the bundle from the [official release](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/releases/tag/2.5.3). The launcher does not download anything. `.runtime/` is ignored by git; binaries and model weights are not redistributed in this repository.
 
-The development frontend still identifies its compatibility level as upstream build 29. Using a build-40 backend does not establish that every newer SDXL/Flux workflow works in this older frontend. Catalog entries requiring newer builds remain gated and now say they are not yet supported by Extended.
+The frontend keeps its upstream package version, but queries the actual backend build asynchronously. A supported build-40 Apple Silicon backend enables the restored SDXL and Flux catalog paths. Flux uses the same **Text to image** screen and model selector as Stable Diffusion. Unsupported backend/model combinations remain gated.
 
-### Verified real inpainting
+Development hot reload is disabled by default to avoid destroying an active editing session. Set `DIFFUSIONBEE_LIVE_RELOAD=1` to opt in while developing; restart deliberately after changing code otherwise.
 
-On October 28, 2026, the current frontend generated a 512×512 image using the official 2.5.3 backend and `sd-v1-5-inpainting_fp16.tdict`, then successfully generated another image through Retry. The model checksum was `68303f49cca00968c39abddc20b622a6`, matching upstream's asset definition. The test used 20 steps, seed 1234, a rectangular mask, and the prompt “a red ceramic vase on a wooden table, studio photograph”.
+### Editor and generation validation
 
-The input had a plain wall and table. All 40,000 pixels inside the drawn rectangle changed; 16,142 pixels outside it changed because the backend expands/feathers the mask. No pixels more than 26 pixels from the rectangle changed. This validates this particular SD 1.5 workflow, not every model or strict preservation immediately outside the drawn mask.
+The editor supports cursor-centered wheel zoom, Fit/100%, Space-drag panning, brush/eraser/rectangle masks, mask undo/redo, and a contextual Generate fill prompt. It crops the masked region with surrounding context at model resolution and composites the result into the original-size photo. Fully unmasked pixels are preserved by the compositor; boundary quality still depends on the model and mask.
 
-The launcher uses DiffusionBee's existing `~/.diffusionbee` data directory. On this development machine the verified bundle and inpainting model are in `.runtime/`, and the model is registered in the local app. Complete-app generation is now verified; signing and packaging an Extended installer are not.
+On October 28, 2026, the official 2.5.3 backend successfully generated with SD 1.5 Inpainting (512×512, 20 steps), JuggernautXL v7 (768×768, 12 steps), and Flux.1 Schnell (768×768, four steps). SD 1.5 Retry also produced a second result. This is coverage of these specific paths, not every catalog entry. Model weights were checksum-verified against the catalog. SDXL masked editing and Flux Dev have not yet received the same real-generation validation.
+
+`test:editor` checks original-size compositing and unchanged unmasked pixels, mask coordinates, strokes, undo/redo, loading races, and generation/review guards with mocked callbacks. It does not assess generated-image quality. Live browser input checks also confirmed wheel zoom, captured pointer panning/release, and repeated viewport resizing from 770×550 to 1070×700 without runtime errors.
+
+The launcher uses DiffusionBee's existing `~/.diffusionbee` data directory. The local backend and model files live in ignored `.runtime/`. Signing and packaging an Extended installer are not verified.
 
 ### Source-only backend
 

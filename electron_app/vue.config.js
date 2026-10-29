@@ -7,6 +7,7 @@ try {
 
 
 module.exports = {
+    devServer: {hot: process.env.DIFFUSIONBEE_LIVE_RELOAD === '1', liveReload: false},
     
     pluginOptions: {
         electronBuilder: {

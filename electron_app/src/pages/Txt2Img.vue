@@ -1,5 +1,5 @@
 <template>
-    <SDImageGenerationApplet ref="sd_applet" name="txt2img"  :form_data="form_data" :form_tags="[ 'txt2img']" :app="app"> </SDImageGenerationApplet>
+    <SDImageGenerationApplet ref="sd_applet" name="txt2img"  :form_data="form_data" :form_tags="[ 'txt2img']" :app="app" :model_options_types="['sd_model', 'flux_nnc']"> </SDImageGenerationApplet>
 </template>
 <script>
 

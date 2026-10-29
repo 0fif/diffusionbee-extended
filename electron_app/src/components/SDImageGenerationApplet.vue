@@ -7,6 +7,7 @@
         :name=name
         :form_tags=form_tags
         :required_assets=required_assets
+        :model_options_types="model_options_types"
         ref="basic_sd_applet"
     >   
         
@@ -41,6 +42,7 @@ import Vue from 'vue'
 export default {
     name: 'SDImageGenerationApplet.vue',
     props: {
+        model_options_types: Array,
         app:Object, 
         form_data: Array,
         name:String,
