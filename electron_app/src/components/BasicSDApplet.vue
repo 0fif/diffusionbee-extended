@@ -108,6 +108,9 @@ export default {
 
         get_sd_form_outputs(){
             let options = this.$refs.form.post_processed_form_outputs()
+            // The editor prompt lives outside the settings form. Include it before model processing.
+            if (options.prompt === undefined && this.sd_options.prompt !== undefined)
+                options.prompt = this.sd_options.prompt;
             options = prep_sd_options(options)
 
             options.applet_name = this.name

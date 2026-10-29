@@ -119,8 +119,15 @@ async function run(root) {
   assert.equal(flux.pipeline,'flux');assert.equal(flux.flux_model_type,'schnell');assert(!('negative_prompt' in flux));
 
   const pageSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/pages/Inpainting.vue'), 'utf8'));
-  const basic = { template: '<div><slot name="input_buttons"/><slot name="output_workpace"/></div>',
-    methods: { check_input_form_n_show_error: () => true, get_sd_form_outputs: () => ({}) } };
+  const basicSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/components/BasicSDApplet.vue'), 'utf8'));
+  const basicComponent = new Function('Form','TwoColAppletLayout','DownloadButton','Vue','apply_model_options','model_available','find_in_form_recursive',
+    basicSource.script.content.replace(/^import .*$/gm, '').replace('export default', 'return'))(
+    {}, {}, {}, Vue, compat.apply_model_options, compat.model_available, () => ({}));
+  const basic = { props: ['sd_options','app'], template: '<div><slot name="input_buttons"/><slot name="output_workpace"/></div>',
+    methods: {check_input_form_n_show_error: basicComponent.methods.check_input_form_n_show_error,
+      get_sd_form_outputs() {return basicComponent.methods.get_sd_form_outputs.call({
+        $refs: {form: {post_processed_form_outputs: () => ({})}}, sd_options: this.sd_options, app: this.app, name: 'inpainting'
+      });}}, computed: {to_download_left: () => []} };
   const compositeSource = fs.readFileSync(path.join(root, 'src/utils/composite_inpaint.js'), 'utf8');
   const compositeFunctions = new Function(compositeSource.replace(/export /g, '') + '; return {composite_inpaint, prepare_inpaint_crop};')();
   const page = new Function('composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
@@ -132,8 +139,8 @@ async function run(root) {
   const messages = [];
   let callbacks;
   let jobs = 0;
-  const backend = {is_input_avail: true, text_to_img: (options, cb) => {callbacks = cb; jobs++;}};
-  const app = {assets_manager: {all_avail_assets:{}}, stable_diffusion: backend, functions: {}, show_toast: msg => messages.push(msg)};
+  const backend = {is_input_avail: true, text_to_img: (options, cb) => {assert.equal(options.prompt, 'Fix her eyes', 'fill-bar prompt reaches backend on generate and retry');callbacks = cb; jobs++;}};
+  const app = {assets_manager: {all_avail_assets:{}, get_downloaded_asset: () => ({}), get_downloaded_asset_path: () => file}, stable_diffusion: backend, functions: {}, show_toast: msg => messages.push(msg)};
   window.ipcRenderer = {sendSync: () => file};
   vm.$destroy();
   document.body.innerHTML = '<div id="page"></div>';
@@ -148,6 +155,10 @@ async function run(root) {
   inp.generate(false);
   assert.equal(jobs, 0, 'empty mask must not start generation');
   await canvas.restore_mask(mask);
+  inp.sd_options.prompt = '   ';
+  inp.generate(false);
+  assert.equal(jobs, 0, 'blank fill prompt is rejected before submission');
+  inp.sd_options.prompt = 'Fix her eyes';
   inp.generate(false);
   assert.equal(jobs, 1);
   assert.equal(inp.undo_history.length, 0, 'pending generation does not change undo history');
