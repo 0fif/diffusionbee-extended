@@ -238,5 +238,19 @@ async function run(root) {
   const edge=originalCtx.getImageData(701,530,1,1).data;
   assert(edge[0]>18 && edge[0]<255,'selection edge blends into original rather than pasting a hard rectangle');
   assert.deepStrictEqual([...originalCtx.getImageData(699,530,1,1).data],[18,52,86,255],'feather never changes pixels outside selection');
+  // An instruction edit shifts the whole crop's exposure, even when only an object changes.
+  const background=document.createElement('canvas');background.width=256;background.height=192;
+  const bg=background.getContext('2d');bg.fillStyle='rgb(120,110,100)';bg.fillRect(0,0,256,192);
+  const edit=document.createElement('canvas');edit.width=256;edit.height=192;
+  const ed=edit.getContext('2d');ed.fillStyle='rgb(140,125,110)';ed.fillRect(0,0,256,192);
+  ed.fillStyle='rgb(40,85,180)';ed.fillRect(105,75,40,40);
+  const region=document.createElement('canvas');region.width=256;region.height=192;
+  region.getContext('2d').fillRect(40,30,176,132);
+  const matched=await compositeFunctions.composite_inpaint(background.toDataURL(),region.toDataURL(),edit.toDataURL(),null,true);
+  const matchedImage=new Image();matchedImage.src=matched;await matchedImage.decode();bg.drawImage(matchedImage,0,0);
+  const sample=(x,y)=>[...bg.getImageData(x,y,1,1).data];
+  assert.deepStrictEqual(sample(20,20),[120,110,100,255],'color matching preserves unselected source exactly');
+  assert(sample(70,60).slice(0,3).every((v,i)=>Math.abs(v-[120,110,100][i])<=2),'background tint removed inside rectangle');
+  assert(sample(120,90)[2]>sample(120,90)[0]+100,'intended blue object survives boundary color matching');
   return 'PASS: zoom, mask undo/redo, native-resolution crop/composite, real canvas pixels, loading, inversion, interrupted strokes, dimensions; generation guards, failure history, discard, retry, undo/redo, empty drop, new-image reset';
 }

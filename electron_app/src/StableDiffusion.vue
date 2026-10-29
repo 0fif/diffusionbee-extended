@@ -198,7 +198,7 @@ export default {
 
             prompt_params.seed = Number(prompt_params.seed) || 0 
 
-            if(prompt_params.prompt){
+            if(prompt_params.prompt && prompt_params.engine !== 'mflux'){
                 prompt_params.prompt = remove_non_ascii(prompt_params.prompt)
             }
 

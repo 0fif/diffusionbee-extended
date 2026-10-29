@@ -182,7 +182,7 @@ export default {
     watch: {
         'sd_options.selected_sd_model'(id) {
             const meta = (this.app.assets_manager.get_downloaded_asset(id) || {}).model_meta_data || {};
-            this.$set(this.sd_options, 'num_steps', meta.sd_type === 'flux_schnell' ? 4 : 25);
+            this.$set(this.sd_options, 'num_steps', meta.steps || (meta.sd_type === 'flux_schnell' ? 4 : 25));
         }
     },
     computed : {
@@ -210,15 +210,21 @@ export default {
             }
 
             const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
-            if (metadata.type === 'flux_nnc' || metadata.sd_type === 'sdxl_base') {
+            if ((metadata.type === 'flux_nnc' || metadata.engine === 'mflux') || metadata.sd_type === 'sdxl_base') {
                 const controlnet = find_in_form_recursive('controlnet_acc', form);
                 if (controlnet) controlnet.exclude_in = [...(controlnet.exclude_in || []), ...(this.form_tags || [])];
             }
-            if (metadata.type === 'flux_nnc') {
+            if ((metadata.type === 'flux_nnc' || metadata.engine === 'mflux')) {
                 const negative = find_in_form_recursive('negative_prompt', form);
                 if (negative) negative.exclude_in = [...(negative.exclude_in || []), ...(this.form_tags || [])];
             }
 
+            if (metadata.engine === 'mflux') {
+                for (const id of ['input_image_strength_desc','guidance_scale','scheduler','do_v_prediction','is_clip_skip_2']) {
+                    const field = find_in_form_recursive(id, form);
+                    if (field) field.exclude_in = [...(field.exclude_in || []), ...(this.form_tags || [])];
+                }
+            }
             // get the functions to get the mask and stuff
             el =  find_in_form_recursive( "input_img" , form)
             if(el && el.draw_mask && el.store_masked_image){
@@ -229,7 +235,7 @@ export default {
             // for SDXL make sure that we only allow certain schedulers ( disabled for now )
             // if(this.sd_options && this.sd_options.selected_sd_model){
             //     let selected_asset =  this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model  ]
-            //     if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc")  ){
+            //     if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc" || selected_asset.model_meta_data.engine === 'mflux')  ){
             //         let el2 = find_in_form_recursive( "scheduler" , form)
             //         if(el2){
             //             el2['default_value'] = "karras"
@@ -243,7 +249,7 @@ export default {
             // for sdxl make use different image sizes
             if(this.sd_options && this.sd_options.selected_sd_model){
                 let selected_asset =  this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model  ]
-                if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc")  ){
+                if(selected_asset &&  selected_asset.model_meta_data && selected_asset.model_meta_data.sd_type && (selected_asset.model_meta_data.sd_type == "sdxl_base" || selected_asset.model_meta_data.type == "flux_nnc" || selected_asset.model_meta_data.engine === 'mflux')  ){
                     let el2 = find_in_form_recursive( "img_width" , form)
                     if(el2){
                         el2['default_value'] = 768

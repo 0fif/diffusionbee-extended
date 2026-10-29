@@ -11,6 +11,7 @@ This fork starts from upstream commit `daf82f8` (December 2023, source version 2
 - Composite edits at original resolution while preserving unmasked pixels.
 - Restore SDXL and Flux model handling with a compatible release backend; select Flux in Text to image.
 - Validate missing images and empty masks before starting inpainting.
+- Add an isolated MFLUX image engine with FLUX.2 Klein generation/editing and searchable Installed/Discover model management. See [modern backend setup](backends/mflux/README.md).
 
 See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. SD 1.5 inpainting/Retry, JuggernautXL text-to-image, and Flux Schnell text-to-image have been verified with the official 2.5.3 release backend. A packaged Extended release remains unverified.
 

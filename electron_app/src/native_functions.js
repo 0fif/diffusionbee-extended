@@ -22,6 +22,11 @@ console.log(require('os').totalmem()/(1000000000) + " Is the total memory")
 
 
 // Read the backend bundle's own identity rather than pretending the source UI is newer.
+ipcMain.handle('model-file-size', (_, filename) => {
+    const stat = require('fs').statSync(filename);
+    return stat.isFile() ? stat.size : null;
+});
+
 ipcMain.handle('backend_info', () => {
     const fs = require('fs');
     const backend = process.env.BIN_PATH;
@@ -505,7 +510,9 @@ function add_custom_pytorch_models(pytorch_model_path, model_name, convert_param
     
     let out_path =  path.join(homedir , ".diffusionbee" , "imported_models" , model_name+".tdict" );
     let proc;
-    if (fs.existsSync(script_path)) {
+    if (process.env.BIN_PATH) {
+        proc = require('child_process').spawn(process.env.BIN_PATH, ['convert_model', pytorch_model_path, out_path]);
+    } else if (fs.existsSync(script_path)) {
         proc = require('child_process').spawn( "python3"  , [ script_path ,  "convert_model" ,  pytorch_model_path , out_path ]);
     } else {
         let bin_path =  path.join(path.dirname(__dirname), 'core' , 'diffusionbee_backend' );

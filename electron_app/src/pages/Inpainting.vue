@@ -120,7 +120,7 @@ const Inpainting = {
     },
     computed : {
         editor_models(){
-            const available = Object.values(this.app.assets_manager.all_avail_assets).filter(asset => asset.model_meta_data && ['sd_model','sd_model_inpaint'].includes(asset.model_meta_data.type));
+            const available = Object.values(this.app.assets_manager.all_avail_assets).filter(asset => asset.model_meta_data && ['sd_model','sd_model_inpaint','mflux_model'].includes(asset.model_meta_data.type));
             if (!available.some(asset => asset.id === 'SD1.5_Inpainting')) available.unshift({id:'SD1.5_Inpainting',title:'SD 1.5 Inpainting'});
             return available;
         },
@@ -144,7 +144,7 @@ const Inpainting = {
         },
 
         model_options_types(){
-            return ["sd_model" ,"sd_model_inpaint"]
+            return ["sd_model" ,"sd_model_inpaint", "mflux_model"]
             
         },
 
@@ -214,7 +214,7 @@ const Inpainting = {
 
                 const editor = this.$refs.inp_img_canvas;
                 const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
-                const prepared = prepare_inpaint_crop(editor.canvasD, editor.canvas, metadata.sd_type === 'sdxl_base' ? 1024 : 512);
+                const prepared = prepare_inpaint_crop(editor.canvasD, editor.canvas, (metadata.sd_type === 'sdxl_base' || metadata.engine === 'mflux') ? 1024 : 512);
                 generation_input = window.ipcRenderer.sendSync('save_b64_image', prepared.image, true);
                 img_mask_url = window.ipcRenderer.sendSync('save_b64_image', prepared.mask, true);
                 this.retry_params.crop = prepared.crop;
@@ -250,7 +250,8 @@ const Inpainting = {
                 async on_img(img_path){
                     that.is_restoring = true;
                     try {
-                        const composite = await composite_inpaint(img_url, that.retry_mask_cached, img_path.generated_img_path, that.retry_params.crop);
+                        const composite = await composite_inpaint(img_url, that.retry_mask_cached, img_path.generated_img_path,
+                            that.retry_params.crop, sd_options_object.engine === 'mflux');
                         const saved = window.ipcRenderer.sendSync('save_b64_image', composite, true);
                         if (!saved || saved === 'NULL') throw new Error('Could not save the edited image.');
                         that.undo_history.push(img_url)

@@ -1,5 +1,6 @@
 // UI support ported from the official 2.5.3 frontend; see docs/RELEASE_SOURCE.md.
 function model_available(model, backend) {
+    if (model.model_meta_data?.engine === 'mflux') return !!backend?.mflux;
     const minimum = Number(model.min_version || 0);
     if (minimum <= 29) return true;
     const type = (model.model_meta_data || {}).type;
@@ -8,6 +9,14 @@ function model_available(model, backend) {
 }
 
 function apply_model_options(options, metadata = {}) {
+    if (metadata.engine === 'mflux') {
+        options.engine = 'mflux';
+        delete options.model_tdict_path;
+        delete options.negative_prompt;
+        delete options.controlnet_model;
+        options.is_control_net = false;
+        return options;
+    }
     if (metadata.type === 'flux_nnc') {
         options.pipeline = 'flux';
         options.flux_model_type = metadata.sd_type === 'flux_dev' ? 'dev' : 'schnell';

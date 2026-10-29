@@ -53,3 +53,7 @@ The `serve:ui` and `build:ui` scripts refer to an upstream `AppDemoUI.vue` file 
 The working crop follows the selection with surrounding context, rounded to backend-supported multiples of 64. Its longest side is 1024 for SDXL or 512 for SD 1.5; it is not forced square. Explicit dimensions prevent the backend's legacy 512-pixel resizing. Final output retains the original photo dimensions. Mask edges blend inward, preserving unselected pixels. Inpainting Input Strength defaults to 80 (higher preserves more of the original).
 
 A real JuggernautXL masked edit was checked at 1024×768 with 80 input strength and 30 requested steps, then composited into a 3888×5184 photo. Its eye region was visually inspected and lacked the severe colored artifacts of the earlier 512-pixel/30-strength request. This is one example, not a guarantee of face identity, edit quality, or Adobe Generative Fill parity.
+
+## Modern image models
+
+See [MFLUX setup, supported tasks, and validation](../backends/mflux/README.md). Models now has Installed/Discover views, compatible-model search, source metadata, and explicit missing-preview states. FLUX.2 Klein uses the existing generation and editing screens alongside the legacy models. Hardware performance is not used as a catalog eligibility rule.

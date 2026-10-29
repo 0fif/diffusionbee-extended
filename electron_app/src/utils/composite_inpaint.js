@@ -1,5 +1,5 @@
 // Composite at the original resolution, preserving every unmasked source pixel.
-export async function composite_inpaint(original, mask, generated, crop) {
+export async function composite_inpaint(original, mask, generated, crop, matchBoundary = false) {
     const load = source => new Promise((resolve, reject) => {
         const image = new Image(); image.onload = () => resolve(image); image.onerror = reject;
         image.src = source.startsWith('data:') || source.startsWith('file:') ? source :
@@ -10,6 +10,7 @@ export async function composite_inpaint(original, mask, generated, crop) {
     const ctx = layer.getContext('2d');
     const area = crop || {x:0,y:0,width:base.width,height:base.height};
     ctx.drawImage(result, area.x, area.y, area.width, area.height);
+    if (matchBoundary) match_selection_colors(ctx, base, selection, area);
     // Feather inward: soften a hard selection without changing any unselected pixels.
     const feather = document.createElement('canvas');
     feather.width = area.width; feather.height = area.height;
@@ -29,6 +30,55 @@ export async function composite_inpaint(original, mask, generated, crop) {
     output.getContext('2d').drawImage(base, 0, 0);
     output.getContext('2d').drawImage(layer, 0, 0);
     return output.toDataURL();
+}
+
+// Instruction editing can shift the background's lighting. Extend the source-minus-edit
+// color difference at the selection boundary smoothly inward (a harmonic correction).
+// Solve only the low-frequency correction on a small grid; retain full-resolution detail.
+function match_selection_colors(ctx, base, selection, area) {
+    const scale = Math.min(1, 96 / Math.max(area.width, area.height));
+    const width = Math.max(3, Math.round(area.width * scale));
+    const height = Math.max(3, Math.round(area.height * scale));
+    const grid = document.createElement('canvas'); grid.width = width; grid.height = height;
+    const g = grid.getContext('2d');
+    const sample = image => {
+        g.clearRect(0, 0, width, height);
+        g.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, width, height);
+        return g.getImageData(0, 0, width, height).data;
+    };
+    const source = sample(base), edit = sample(ctx.canvas), mask = sample(selection);
+    const correction = new Float32Array(width * height * 3);
+    const interior = [];
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+        const i = y * width + x;
+        if (mask[i * 4 + 3] > 127) {
+            // At image edges there is no surrounding source to match.
+            if (x && y && x < width - 1 && y < height - 1) interior.push(i * 3);
+        } else for (let c = 0; c < 3; c++) correction[i * 3 + c] = source[i * 4 + c] - edit[i * 4 + c];
+    }
+    for (let iteration = 0; iteration < 1000; iteration++) {
+        let change = 0;
+        for (const i of interior) for (let c = 0; c < 3; c++) {
+            const j = i + c;
+            const delta = 1.7 * ((correction[j - 3] + correction[j + 3] +
+                correction[j - width * 3] + correction[j + width * 3]) / 4 - correction[j]);
+            correction[j] += delta;
+            change = Math.max(change, Math.abs(delta));
+        }
+        if (change < 0.02) break;
+    }
+    const pixels = ctx.getImageData(area.x, area.y, area.width, area.height);
+    for (let y = 0; y < area.height; y++) for (let x = 0; x < area.width; x++) {
+        const gx = Math.max(0, Math.min(width - 1, (x + 0.5) * width / area.width - 0.5));
+        const gy = Math.max(0, Math.min(height - 1, (y + 0.5) * height / area.height - 0.5));
+        const x0 = Math.floor(gx), y0 = Math.floor(gy), dx = gx - x0, dy = gy - y0;
+        const a = (y0 * width + x0) * 3, b = (y0 * width + Math.min(width - 1, x0 + 1)) * 3;
+        const row = (Math.min(height - 1, y0 + 1) - y0) * width * 3;
+        for (let c = 0; c < 3; c++) pixels.data[(y * area.width + x) * 4 + c] +=
+            (1 - dy) * ((1 - dx) * correction[a + c] + dx * correction[b + c]) +
+            dy * ((1 - dx) * correction[a + row + c] + dx * correction[b + row + c]);
+    }
+    ctx.putImageData(pixels, area.x, area.y);
 }
 
 // Work on the masked region at model resolution instead of shrinking the entire photo.

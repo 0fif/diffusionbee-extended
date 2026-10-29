@@ -13,6 +13,23 @@ const initial_state = new Map();
 let RESTART_BACKEND_ON_CLOSE = false
 
 const path = require('path');
+const {createMfluxEngine} = require('./mflux_engine.cjs');
+const root = path.resolve(process.cwd(), '..');
+const modernEngine = createMfluxEngine({
+    runner: process.env.MFLUX_RUNNER || path.join(root, 'backends/mflux/runner.py'),
+    python: process.env.MFLUX_PYTHON || path.join(root, '.runtime/mflux-env/bin/python'),
+    modelsDir: process.env.MFLUX_MODEL_DIR || path.join(root, '.runtime/mflux-models'),
+    outputDir: path.join(require('os').homedir(), '.diffusionbee/images'),
+    emit: line => {if (win && !is_app_closing) win.webContents.send('to_renderer', 'py2b ' + line);}
+});
+ipcMain.handle('mflux-remove', (_, id) => modernEngine.remove(id));
+ipcMain.handle('mflux-status', () => modernEngine.status());
+ipcMain.handle('mflux-metadata', (_, id) => modernEngine.metadata(id));
+ipcMain.handle('mflux-install', (event, id) => modernEngine.install(id, update => {
+    if (!event.sender.isDestroyed()) event.sender.send('mflux-install-progress', {id, ...update});
+}));
+ipcMain.handle('mflux-cancel-install', () => modernEngine.cancelInstall());
+
 
 function start_bridge() {
 
@@ -55,7 +72,7 @@ function start_bridge() {
             if (line.startsWith('utds registered_ext_applets.'))
                 initial_state.set(line.split('___U_P_D_A_T_E___')[0], line);
             if (line === 'sdbk mdld') initial_state.set('model_loaded', line);
-            if (renderer_ready && win && !is_app_closing && line)
+            if (renderer_ready && win && !is_app_closing && line && !(modernEngine.busy && line === 'sdbk inrd'))
                 win.webContents.send('to_renderer', 'py2b ' + line);
         }
 
@@ -69,11 +86,7 @@ function start_bridge() {
              win.webContents.send('to_renderer', 'adlg ' + data.toString('utf8') );
     });
 
-    python.on('close', (code) => {
-        // if( code != 0 )
-        // {
-        // 	dialog.showMessageBox("Backend quit unexpectedly")
-        // }
+    python.on('close', () => {
 
         if(is_app_closing){
             if (win){
@@ -113,6 +126,7 @@ function start_bridge() {
 
 
 ipcMain.on('to_python_sync', (event, arg) => {
+    if (modernEngine.handle(arg)) {event.returnValue = 'ok';return;}
     if (python) {
         if (arg === 'strt') {
             renderer_ready = true;
@@ -130,6 +144,7 @@ ipcMain.on('to_python_sync', (event, arg) => {
 
 
 ipcMain.on('to_python_async', (event, arg) => {
+    if (modernEngine.handle(arg)) return;
     if (python) {
         python.stdin.write("b2py " + arg.toString() + "\n")
     }
@@ -142,6 +157,7 @@ ipcMain.on('to_python_async', (event, arg) => {
 
 
 app.on('window-all-closed', () => {
+    modernEngine.close();
     if(python){
         is_app_closing = true;
         python.kill();

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "mflux-flux2-klein-4b-4bit",
+    "title": "FLUX.2 Klein 4B",
+    "description": "Text-to-image and instruction-based image editing. Selections are blended back into the original photo.",
+    "repo": "mlx-community/flux2-klein-4b-4bit",
+    "revision": "860e87183ceb29e39627c0612ebd66d8ea66e68c",
+    "source_page_url": "https://huggingface.co/mlx-community/flux2-klein-4b-4bit",
+    "license": "apache-2.0",
+    "model_meta_data": {"engine":"mflux", "type":"mflux_model", "sd_type":"flux2_klein_4b", "float_type":"4-bit", "steps":4, "tasks":["txt2img","img2img","inpainting"], "mask_mode":"composite"}
+  },
+  {
+    "id": "mflux-flux2-klein-9b-4bit",
+    "title": "FLUX.2 Klein 9B",
+    "description": "Larger Klein variant for generation and instruction-based editing. Not yet validated in Extended.",
+    "repo": "mlx-community/flux2-klein-9b-4bit",
+    "source_page_url": "https://huggingface.co/mlx-community/flux2-klein-9b-4bit",
+    "license": "See model license",
+    "model_meta_data": {"engine":"mflux", "type":"mflux_model", "sd_type":"flux2_klein_9b", "float_type":"4-bit", "steps":4, "tasks":["txt2img","img2img","inpainting"], "mask_mode":"composite"}
+  }
+]

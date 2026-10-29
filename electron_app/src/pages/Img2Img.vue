@@ -1,6 +1,6 @@
 <template>
     <SDImageGenerationApplet 
-        ref="sd_applet"   
+        ref="sd_applet" :model_options_types="['sd_model', 'mflux_model']"
         name="img2img" :form_data="form_data" :form_tags="[  'img2img']" :app="app" 
         :check_options_input_fn="check_options_input_fn"
         :postprocess_form_options_fn="postprocess_form_options_fn"> </SDImageGenerationApplet>
@@ -54,6 +54,7 @@ const Img2Img = {
        }, 
 
        postprocess_form_options_fn(options){
+            const explicitDimensions = options.img_width && options.img_height;
             if(!options.img_width){
                 options.img_width = this.$refs.sd_applet.sd_options.input_img__AUX__width
             }
@@ -61,6 +62,11 @@ const Img2Img = {
                 options.img_height = this.$refs.sd_applet.sd_options.input_img__AUX__height
             }
 
+            if (options.engine === 'mflux' && !explicitDimensions) {
+                const scale = Math.min(1, 1024 / Math.max(options.img_width, options.img_height));
+                options.img_width = Math.max(16, Math.round(options.img_width * scale / 16) * 16);
+                options.img_height = Math.max(16, Math.round(options.img_height * scale / 16) * 16);
+            }
             return options
        }
     },

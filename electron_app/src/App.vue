@@ -72,13 +72,14 @@ export default
 
     mounted() {
         this.app = this;
-        window.ipcRenderer.invoke('backend_info').then(info => { this.backend_info = info; })
+        window.ipcRenderer.invoke('backend_info').then(info => { this.backend_info = {...info, mflux:!!this.modern_backend.available}; })
             .catch(err => console.warn('Backend identity unavailable:', err.message));
         window.app = this.app; // so that we can access from console
         this.stable_diffusion = this.$refs.stable_diffusion;
         this.stable_diffusion_manager = this.$refs.sd_manager;
         this.stable_diffusion_manager.stable_diffusion = this.stable_diffusion;
         this.assets_manager = this.$refs.assets_manager;
+        this.refresh_modern_models();
 
         bind_app_component(this);
         send_to_py("strt");
@@ -169,6 +170,18 @@ export default
     },
 
     methods: {
+        async refresh_modern_models(){
+            try {
+                this.modern_backend = await window.ipcRenderer.invoke('mflux-status');
+                this.$set(this.backend_info, 'mflux', !!this.modern_backend.available);
+                const installed = this.modern_backend.models.filter(model => model.status === 'done');
+                for (const [id, asset] of Object.entries(this.assets_manager.local_assets)) {
+                    if (asset.model_meta_data?.engine === 'mflux' && !installed.some(model => model.id === id))
+                        this.$delete(this.assets_manager.local_assets, id);
+                }
+                for (const model of installed) this.$set(this.assets_manager.local_assets, model.id, {...model,is_locally_imported:true});
+            } catch (error) {this.modern_backend = {available:false, models:[],error:error.message};}
+        },
 
         main_screen() {
 
@@ -245,6 +258,7 @@ export default
 
         return {
             current_build_number : Number(require('../package.json').build_number), 
+            modern_backend: {available:false, models:[]},
             backend_info: {build: 29, version: 'source', modern_models: false},
             all_pages_ready: false, // set to true by PagesRouter
             is_mounted : false, // set when app is mounted
