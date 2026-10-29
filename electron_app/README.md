@@ -47,3 +47,9 @@ The `serve:ui` and `build:ui` scripts refer to an upstream `AppDemoUI.vue` file 
 ## Packaging
 
 `npm run electron:build` requires `BACKEND_BUILD_PATH` pointing to prepared backend resources. Upstream signing also expects `APPLE_ID` and `APPLE_ID_PASSWORD`. No installer or signed build has been verified for Extended. App identifiers, data directories, and the upstream update check must be separated before distributing a forked installer.
+
+### Rectangular editing follow-up
+
+The working crop follows the selection with surrounding context, rounded to backend-supported multiples of 64. Its longest side is 1024 for SDXL or 512 for SD 1.5; it is not forced square. Explicit dimensions prevent the backend's legacy 512-pixel resizing. Final output retains the original photo dimensions. Mask edges blend inward, preserving unselected pixels. Inpainting Input Strength defaults to 80 (higher preserves more of the original).
+
+A real JuggernautXL masked edit was checked at 1024×768 with 80 input strength and 30 requested steps, then composited into a 3888×5184 photo. Its eye region was visually inspected and lacked the severe colored artifacts of the earlier 512-pixel/30-strength request. This is one example, not a guarantee of face identity, edit quality, or Adobe Generative Fill parity.

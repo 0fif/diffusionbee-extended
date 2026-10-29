@@ -99,7 +99,7 @@ const Inpainting = {
     },
     data() {
         return {
-            sd_options : {"num_imgs":"1", "prompt":"", "selected_sd_model":"SD1.5_Inpainting", "inp_only_update_masked":true},
+            sd_options : {"num_imgs":"1", "prompt":"", "selected_sd_model":"SD1.5_Inpainting", "inp_only_update_masked":true, "input_image_strength":80},
             backend_error : "",
             is_mounted: false,
             is_stopping : false,
@@ -154,6 +154,9 @@ const Inpainting = {
             let el = find_in_form_recursive( "selected_sd_model" , form_or)
 
             el['options'] = [ "SD1.5_Inpainting" , "Default_SD1.5" ]
+            const strength = find_in_form_recursive('input_image_strength', form_or);
+            strength.default_value = 80;
+            strength.is_persistant = false;
             form_or = form_or.filter(item => item.id !== 'prompt');
 
             return form_or
@@ -215,6 +218,8 @@ const Inpainting = {
                 generation_input = window.ipcRenderer.sendSync('save_b64_image', prepared.image, true);
                 img_mask_url = window.ipcRenderer.sendSync('save_b64_image', prepared.mask, true);
                 this.retry_params.crop = prepared.crop;
+                this.retry_params.width = prepared.width;
+                this.retry_params.height = prepared.height;
                 this.retry_params.generation_input = generation_input;
                 this.retry_mask_cached = editor.get_mask_for_cache();
             }
@@ -234,6 +239,9 @@ const Inpainting = {
             sd_options_object.input_img = generation_input
 
             prep_sd_optins(this , sd_options_object , "Generative Fill" , img_mask_url)
+            sd_options_object.img_width = this.retry_params.width;
+            sd_options_object.img_height = this.retry_params.height;
+            sd_options_object.force_use_given_size = true;
 
             let that = this;
 

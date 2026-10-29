@@ -118,6 +118,13 @@ async function run(root) {
   const flux=compat.apply_model_options({negative_prompt:'bad',controlnet_model:'old'},{type:'flux_nnc',sd_type:'flux_schnell'});
   assert.equal(flux.pipeline,'flux');assert.equal(flux.flux_model_type,'schnell');assert(!('negative_prompt' in flux));
 
+  const inpaintSource=fs.readFileSync(path.join(root,'src/utils/in_out_paint_utils.js'),'utf8');
+  const prepInpaint=new Function(inpaintSource.replace(/export \{[^}]+\}/,'return prep_sd_optins;'))();
+  const xlOptions={};
+  prepInpaint({sd_options:{selected_sd_model:'xl'},app:{assets_manager:{all_avail_assets:{xl:{model_meta_data:{sd_type:'sdxl_base'}}}}}},xlOptions,'Generative Fill','mask.png');
+  assert.equal(xlOptions.img_width,1024);assert.equal(xlOptions.img_height,1024);
+  assert.equal(xlOptions.force_use_given_size,true);assert.equal(xlOptions.input_image_strength,80);
+
   const pageSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/pages/Inpainting.vue'), 'utf8'));
   const basicSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/components/BasicSDApplet.vue'), 'utf8'));
   const basicComponent = new Function('Form','TwoColAppletLayout','DownloadButton','Vue','apply_model_options','model_available','find_in_form_recursive',
@@ -199,6 +206,8 @@ async function run(root) {
   selection.getContext('2d').fillRect(700,500,100,60);
   const prepared=compositeFunctions.prepare_inpaint_crop(original,selection,512);
   assert(prepared.crop.width < 1600, 'small selection crops its context, not the entire photo');
+  assert.notEqual(prepared.width,prepared.height,'rectangular selection does not require a square model input');
+  assert.equal(prepared.width%64,0);assert.equal(prepared.height%64,0);
   const generated=document.createElement('canvas');generated.width=generated.height=512;
   generated.getContext('2d').fillStyle='red';generated.getContext('2d').fillRect(0,0,512,512);
   const composed=await compositeFunctions.composite_inpaint(original.toDataURL(),selection.toDataURL(),generated.toDataURL(),prepared.crop);
@@ -207,5 +216,8 @@ async function run(root) {
   originalCtx.drawImage(composedImage,0,0);
   assert.deepStrictEqual([...originalCtx.getImageData(0,0,1,1).data],[18,52,86,255],'unmasked source pixel preserved');
   assert.deepStrictEqual([...originalCtx.getImageData(750,530,1,1).data],[255,0,0,255],'generated crop lands inside selection');
+  const edge=originalCtx.getImageData(701,530,1,1).data;
+  assert(edge[0]>18 && edge[0]<255,'selection edge blends into original rather than pasting a hard rectangle');
+  assert.deepStrictEqual([...originalCtx.getImageData(699,530,1,1).data],[18,52,86,255],'feather never changes pixels outside selection');
   return 'PASS: zoom, mask undo/redo, native-resolution crop/composite, real canvas pixels, loading, inversion, interrupted strokes, dimensions; generation guards, failure history, discard, retry, undo/redo, empty drop, new-image reset';
 }

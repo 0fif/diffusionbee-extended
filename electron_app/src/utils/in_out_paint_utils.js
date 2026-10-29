@@ -42,7 +42,10 @@ function prep_sd_optins(self , sd_options_object, mode , img_mask_url){
     if (metadata.sd_type === 'sdxl_base') {
         sd_options_object.num_imgs = 1;
         sd_options_object.sd_mode_override = 'img2img';
-        sd_options_object.input_image_strength = Number(self.sd_options.input_image_strength || 0.85);
+        sd_options_object.img_width = 1024;
+        sd_options_object.img_height = 1024;
+        sd_options_object.force_use_given_size = true;
+        sd_options_object.input_image_strength = Number(self.sd_options.input_image_strength ?? 80);
         sd_options_object.do_masking_diffusion = true;
         sd_options_object.mask_image_path = img_mask_url;
         sd_options_object.get_mask_from_image_alpha = false;
