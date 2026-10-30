@@ -59,7 +59,7 @@
                     <button class="editor-button primary" :disabled="!is_sd_active" @click="keep_generation">Keep edit</button>
                 </div>
                 <div class="editor-status" aria-live="polite">
-                    <span v-if="is_mounted && !stable_diffusion.is_input_avail">{{stable_diffusion.generation_state_msg || 'Generating'}} {{done_percentage >= 0 ? Math.round(done_percentage)+'%' : ''}}</span>
+                    <GenerationStatus v-if="is_mounted" :backend="stable_diffusion"/>
                     <button v-if="is_mounted && !stable_diffusion.is_input_avail && stable_diffusion.generated_by === 'Inpainting'" class="editor-button" :disabled="is_stopping" @click="stop_all">{{is_stopping ? 'Stopping…' : 'Stop generation'}}</button>
                     <span v-if="!is_mounted || stable_diffusion.is_input_avail" class="editor-hint">Scroll to zoom · Space + drag to pan · B brush · E erase</span>
                     <span class="toolbar-spacer"></span>
@@ -77,6 +77,7 @@
 </template>
 
 <script>
+import GenerationStatus from "../components/GenerationStatus.vue"
 
 import {composite_inpaint, prepare_inpaint_crop} from '../utils/composite_inpaint.js'
 import BasicSDApplet from "../components/BasicSDApplet.vue"
@@ -91,7 +92,7 @@ const Inpainting = {
     props: {
         app:Object, 
     },
-    components: { BasicSDApplet , ImageCanvas  },
+    components: { GenerationStatus, BasicSDApplet , ImageCanvas  },
     mounted() {
         this.stable_diffusion = this.app.stable_diffusion
         this.app.functions.send_to_inpaint = this.send_to_inpaint; 
@@ -261,7 +262,7 @@ const Inpainting = {
                     that.is_post_generate_box_showing = true
                     } catch (err) {
                         that.backend_error = 'Could not prepare the edit. Your original image is unchanged.';
-                        that.app.show_toast(that.backend_error);
+                        throw new Error(that.backend_error);
                     } finally { that.is_restoring = false; }
                 },
                 on_progress(p){

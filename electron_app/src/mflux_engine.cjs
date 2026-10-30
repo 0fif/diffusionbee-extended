@@ -100,7 +100,7 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
             if (!installed(entry).asset_path) throw new Error('Download this model from Models first.');
             if (installation) throw new Error('Wait for the model download to finish.');
             generation = job('generate', request, event => {
-                if (event.event === 'stage') emit('sdbk gnms ' + event.message.replace(/[\r\n]/g,' '));
+                if (event.event === 'stage' || event.event === 'progress') emit('sdbk stat ' + JSON.stringify(event));
                 if (event.event === 'progress') emit('sdbk dnpr ' + Math.max(0,Math.min(100,event.value)));
             });
             generation.promise.then(result => emit('sdbk nwim ' + JSON.stringify(result)))

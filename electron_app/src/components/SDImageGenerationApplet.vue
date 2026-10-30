@@ -26,6 +26,7 @@
             
             
             
+            <GenerationStatus :backend="app.stable_diffusion"/>
             <GenerationGallery  :app="app" ref="gallery"> </GenerationGallery>
         </template>
 
@@ -33,6 +34,7 @@
 
 </template>
 <script>
+import GenerationStatus from "../components/GenerationStatus.vue"
 
 import GenerationGallery from "./GenerationGallery.vue"
 import BasicSDApplet from "../components/BasicSDApplet.vue"
@@ -50,7 +52,7 @@ export default {
         postprocess_form_options_fn: Function, // if you want to append   modify the input options valus from form 
         check_options_input_fn : Function, // if you want to add checks to the inpus 
     },
-    components: { GenerationGallery , BasicSDApplet  },
+    components: { GenerationStatus, GenerationGallery , BasicSDApplet  },
     mounted() {
         this.is_mounted = true
     },

@@ -19,9 +19,7 @@
             
              <b-dropdown-form style=" width: 250px;max-height: calc(100vh - 300px); overflow-y: scroll;  " class="dropdown-bubble">
                 <div v-if="app.is_mounted && !(app.stable_diffusion.is_input_avail)">
-                    <h2>Status : Generating Images</h2>
-                    <p  > Generation speed : {{app.stable_diffusion.generation_state_msg || "--"}}</p>
-                    <p  > Current image ETA : {{app.stable_diffusion.remaining_times || "--"}}</p>
+                    <GenerationStatus :backend="app.stable_diffusion"/>
                 </div>
                 <h2 v-else >Status : Idle</h2>
                 <p>Images remaining : {{n_jobs_left}} </p> 
@@ -73,6 +71,7 @@
     </div>
 </template>
 <script>
+import GenerationStatus from "../components/GenerationStatus.vue"
 
 import { icon_library } from "../components_bare/icon_library.js"
 import MoonLoader from 'vue-spinner/src/MoonLoader.vue'
@@ -81,7 +80,7 @@ import MoonLoader from 'vue-spinner/src/MoonLoader.vue'
 export default {
     name: 'MainToolbar',
     props: { app:Object , asset_details:Object },
-    components: {MoonLoader},
+    components: { GenerationStatus,MoonLoader},
     mounted() {
 
     },

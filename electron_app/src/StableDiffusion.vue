@@ -5,8 +5,6 @@
 
 import { send_to_py } from "./py_vue_bridge.js"
 import {get_tokens} from './clip_tokeniser/clip_encoder.js'
-import {compute_time_remaining} from "./utils.js"
-const moment = require('moment')
 
 let notification_sound = new Audio(require('@/assets/notification.mp3'))
 
@@ -24,9 +22,7 @@ export default {
     name: 'StableDiffusion',
     props: {},
     components: {},
-    mounted() {
-
-    },
+    beforeDestroy() { clearInterval(this.generation_loop); },
     data() {
         return {
             is_stopping: false,
@@ -41,12 +37,20 @@ export default {
             attached_cbs : undefined,
             model_version : "",
             nb_its: 0,
-            iter_times: [],
-            generation_loop: undefined
+            active_engine: '',
+            generation_loop: undefined,
+            started_at: 0,
+            elapsed_seconds: 0,
+            step: 0,
+            steps: 0,
+            step_seconds: null,
+            run_outcome: "",
+            diagnostics: null,
+            pending_result: null
         };
     },
     methods: {
-        state_msg(msg){
+        async state_msg(msg){
             let msg_code = msg.substring(0, 4);
             if(msg_code == "mdld"){
                 this.is_backend_loaded = true;
@@ -55,7 +59,14 @@ export default {
                 this.is_model_downloading = false;
             }
             if(msg_code == "inrd"){
-                console.log("cps unset inrd ")
+                if (this.pending_result) await this.pending_result;
+                if (this.started_at) {
+                    this.elapsed_seconds = (Date.now() - this.started_at) / 1000;
+                    this.generation_state_msg = this.is_stopping ? 'Stopped' : (this.run_outcome || 'Finished');
+                }
+                clearInterval(this.generation_loop);
+                this.attached_cbs = undefined;
+                this.remaining_times = '';
                 this.is_stopping = false
                 this.is_input_avail = true; // note : is_input_avail can be watched so set this at last pls
             }
@@ -63,15 +74,23 @@ export default {
                 this.is_input_avail = false;
             }
 
-            if(msg_code == "nwim"){
+            if(msg_code == "nwim" && !this.is_stopping){
                 if (this.$parent.app_state.app_data.settings.notification_sound == true) {
                     notification_sound.play();
                 }
                 let img = msg.substring(5).trim()
                 img = JSON.parse(img)
                 if(this.attached_cbs){
-                    if(this.attached_cbs.on_img)
-                        this.attached_cbs.on_img(img);
+                    this.diagnostics = img.timings ? {timings:img.timings, peak_memory_bytes:img.peak_memory_bytes} : null;
+                    this.generation_state_msg = 'Finishing image';
+                    const finishing = Date.now();
+                    this.pending_result = Promise.resolve().then(() => this.attached_cbs && this.attached_cbs.on_img && this.attached_cbs.on_img(img))
+                        .then(() => {this.run_outcome = 'Complete';})
+                        .catch(error => {this.run_outcome = 'Failed';if (this.attached_cbs && this.attached_cbs.on_err) this.attached_cbs.on_err(error.message);})
+                        .finally(() => {
+                            if (this.diagnostics) this.$set(this.diagnostics.timings, 'finishing', (Date.now()-finishing)/1000);
+                            this.pending_result = null;
+                        });
                 } else {
                     console.log("got new img but cbs none")
                 }
@@ -89,7 +108,16 @@ export default {
                 let p = (msg.substring(5).trim());
                 this.model_loading_msg = p;
             }
-            if(msg_code == "gnms"){
+            if (msg_code === 'stat' && !this.is_stopping) {
+                const event = JSON.parse(msg.substring(5));
+                if (event.event === 'stage') this.generation_state_msg = event.message;
+                if (event.event === 'progress') {
+                    this.step = event.step || 0;
+                    this.steps = event.steps || this.nb_its;
+                    this.step_seconds = event.step_seconds;
+                }
+            }
+            if(msg_code == "gnms" && !this.is_stopping){
                 let p = (msg.substring(5).trim());
                 this.generation_state_msg = p;
             }
@@ -107,6 +135,8 @@ export default {
 
             if(msg_code == "errr"){
                 this.is_model_downloading = false;
+                this.run_outcome = 'Failed';
+                this.generation_state_msg = 'Failed';
                 let error = msg.substring(5).trim()
                 if(this.attached_cbs){
                     if(this.attached_cbs.on_err)
@@ -115,47 +145,40 @@ export default {
 
             }
 
-            if(msg_code == "dnpr"){
+            if(msg_code == "dnpr" && !this.is_stopping){
                 this.is_model_downloading = false;
-                let p = Number(msg.substring(5).trim());
-                let iter_time =  Date.now()  -this.last_iter_t;
-                this.last_iter_t  = Date.now();
-                if(this.attached_cbs){
-                    if(this.attached_cbs.on_progress){
-                        if(p >= 0 ){
-                            this.generation_state_msg = iter_time/1000 + " s/it";
-                            this.iter_times.push(iter_time);
-                            let median = this.iter_times.sort((a, b) => a - b)[Math.floor(this.iter_times.length / 2)];
-                            let time_remaining = moment.duration(median*((100-p)*this.nb_its/100));
-                              
-                            this.remaining_times = compute_time_remaining(time_remaining);
-                            clearInterval(this.generation_loop);
-                            this.generation_loop = setInterval(() => {
-                                if(this.attached_cbs == undefined){
-                                    return clearInterval(this.generation_loop);
-                                }
-                                time_remaining.subtract(1, 'seconds');
-                                this.remaining_times = compute_time_remaining(time_remaining);
-                            }, 1000);
-    
-                        }
-                        this.attached_cbs.on_progress(p, iter_time);
-                    }
-                        
-                } else {
-                    console.log("got new msg but cbs none")
+                const p = Number(msg.substring(5).trim());
+                if (!Number.isFinite(p)) return;
+                if (this.active_engine !== 'mflux' && p >= 0) {
+                    this.generation_state_msg = p >= 100 ? 'Finishing image' : 'Generating image';
+                    this.step = Math.round(p * this.nb_its / 100);
+                    this.steps = this.nb_its;
                 }
-
+                if (this.attached_cbs && this.attached_cbs.on_progress) this.attached_cbs.on_progress(p);
             }
 
 
         } ,
 
+        begin_run(engine, steps) {
+            clearInterval(this.generation_loop);
+            this.active_engine = engine;
+            this.is_input_avail = false;
+            this.started_at = Date.now();
+            this.elapsed_seconds = 0;
+            this.step = 0; this.steps = steps; this.nb_its = steps;
+            this.step_seconds = null; this.diagnostics = null; this.run_outcome = '';
+            this.generation_state_msg = 'Starting';
+            this.remaining_times = '';
+            this.generation_loop = setInterval(() => {this.elapsed_seconds = (Date.now()-this.started_at)/1000;}, 1000);
+        },
         interupt(){
-            send_to_py("t2im __stop__")
-            console.log("cps unset st ")
-            this.is_stopping = true
+            if (this.is_input_avail || this.is_stopping) return;
+            this.is_stopping = true;
+            this.generation_state_msg = 'Stopping…';
+            this.remaining_times = '';
             this.attached_cbs = undefined;
+            send_to_py("t2im __stop__");
         },
 
         is_ready(){
@@ -175,6 +198,7 @@ export default {
             this.generated_by = applet_name;
             this.attached_cbs = callbacks;
 
+            this.begin_run('legacy', 0);
             this.generation_state_msg = "Running " + applet_name
 
             send_to_py("rapp " + applet_name + " " + JSON.stringify(params)) 
@@ -206,14 +230,9 @@ export default {
                 prompt_params.negative_prompt = remove_non_ascii(prompt_params.negative_prompt)
             }                
 
-            this.last_iter_t = Date.now()
             this.generated_by = generated_by;
             this.attached_cbs = callbacks;
-            console.log("cps set ")
-            this.generation_state_msg = ""
-            this.remaining_times = ""
-            this.iter_times = []
-            this.nb_its = prompt_params.ddim_steps||25
+            this.begin_run(prompt_params.engine || 'legacy', Number(prompt_params.num_steps || prompt_params.ddim_steps || 25));
             send_to_py("t2im " + JSON.stringify(prompt_params)) 
         }
 

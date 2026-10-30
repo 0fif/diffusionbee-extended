@@ -156,10 +156,10 @@ async function run(root) {
       });}}, computed: {to_download_left: () => []} };
   const compositeSource = fs.readFileSync(path.join(root, 'src/utils/composite_inpaint.js'), 'utf8');
   const compositeFunctions = new Function(compositeSource.replace(/export /g, '') + '; return {composite_inpaint, prepare_inpaint_crop};')();
-  const page = new Function('composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
+  const page = new Function('GenerationStatus', 'composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
     'find_in_form_recursive', 'inpaint_assets', 'prep_sd_optins',
     pageSource.script.content.replace(/^import .*$/gm, '').replace('export default Inpainting;', 'return Inpainting;'))(
-      compositeFunctions.composite_inpaint, compositeFunctions.prepare_inpaint_crop, p => require(path.resolve(root, 'src/pages', p)), component, basic, {template: '<div/>'},
+      {template:'<div/>'}, compositeFunctions.composite_inpaint, compositeFunctions.prepare_inpaint_crop, p => require(path.resolve(root, 'src/pages', p)), component, basic, {template: '<div/>'},
       () => ({}), () => [], () => {});
   page.template = pageSource.template.content;
   const messages = [];

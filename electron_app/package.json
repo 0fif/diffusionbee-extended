@@ -19,7 +19,8 @@
     "postinstall": "electron-builder install-app-deps",
     "postuninstall": "electron-builder install-app-deps",
     "test:mflux": "node tests/mflux.cjs",
-    "setup:mflux": "node scripts/setup-mflux.cjs"
+    "setup:mflux": "node scripts/setup-mflux.cjs",
+    "test:generation": "node tests/generation-status.cjs"
   },
   "main": "background.js",
   "dependencies": {

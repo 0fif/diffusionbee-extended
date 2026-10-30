@@ -11,12 +11,16 @@ const {createMfluxEngine}=require('../src/mflux_engine.cjs');
  let events=[];
  const engine=createMfluxEngine({runner,python:process.execPath,modelsDir:directory,outputDir:directory,emit:event=>events.push(event),
    spawnProcess:(python,args,options)=>require('child_process').spawn(python,args.filter(a=>a!=='-u'),options)});
- const wait=async()=>{for(let n=0;engine.busy&&n<100;n++)await new Promise(resolve=>setTimeout(resolve,25));assert(!engine.busy,'job finishes');};
+ const wait=async()=>{for(let n=0;engine.busy&&n<200;n++)await new Promise(resolve=>setTimeout(resolve,25));assert(!engine.busy,'job finishes');};
  const submit=prompt=>engine.handle('t2im '+JSON.stringify({engine:'mflux',selected_sd_model:'image-model',prompt}));
  assert.equal(engine.handle('t2im {"prompt":"legacy"}'),false);
  submit('test');await wait();assert(events.some(e=>e.startsWith('sdbk nwim ')));assert(events.includes('sdbk dnpr 50'));assert.equal(events.at(-1),'sdbk inrd');
  events=[];submit('fail');await wait();assert(events.some(e=>e.includes('fixture failed')));assert.equal(events.at(-1),'sdbk inrd');
  events=[];submit('slow');assert(engine.handle('t2im __stop__'));await wait();assert(!events.some(e=>e.startsWith('sdbk nwim')));assert.equal(events.at(-1),'sdbk inrd');
+ events=[];submit('stubborn');
+ for(let n=0;!events.some(e=>e.includes('Ready to cancel'))&&n<100;n++)await new Promise(resolve=>setTimeout(resolve,10));
+ assert(events.some(e=>e.includes('Ready to cancel')),'worker ready');engine.handle('t2im __stop__');await wait();
+ assert(!events.some(e=>e.startsWith('sdbk nwim')),'forced cancellation suppresses late result');assert.equal(events.at(-1),'sdbk inrd');
  events=[];engine.handle('t2im '+JSON.stringify({engine:'mflux',selected_sd_model:'chat-model'}));assert(events.some(e=>e.includes('not supported')));
  fs.unlinkSync(path.join(modelDir,'weights'));events=[];submit('test');assert(events.some(e=>e.includes('Download this model')));
  engine.close();fs.rmSync(directory,{recursive:true,force:true});console.log('PASS: modern/legacy routing, chunked events, failures, cancellation, missing weights, unsupported models');

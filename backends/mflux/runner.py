@@ -73,6 +73,19 @@ def metadata(request):
 
 
 def generate(request):
+    started = time.monotonic()
+    timings = {}
+    phase = 'startup'
+    phase_started = started
+
+    def stage(name, message):
+        nonlocal phase, phase_started
+        now = time.monotonic()
+        timings[phase] = now - phase_started
+        phase, phase_started = name, now
+        emit('stage', phase=name, message=message)
+
+    emit('stage', phase='startup', message='Starting image engine')
     model, options = validate_request(request)
     target = Path(request['models_dir']) / model['id']
     if not (target / '.installed.json').is_file():
@@ -85,28 +98,48 @@ def generate(request):
     import mlx.core as mx
     task = request.get('applet_name', 'txt2img')
     config = getattr(ModelConfig, model['model_meta_data']['sd_type'])()
-    emit('stage', message='Loading ' + model['title'])
-    started = time.monotonic()
+    stage('loading', 'Loading ' + model['title'])
     cls = Flux2Klein if task == 'txt2img' else Flux2KleinEdit
-    engine = cls(model_config=config, model_path=str(target), quantize=4)
+    class TimedEngine(cls):
+        def _encode_prompt_pair(self, **kwargs):
+            encoded = super()._encode_prompt_pair(**kwargs)
+            # MLX is lazy: finish prompt computation before timing denoising.
+            mx.eval(*(value for value in encoded if value is not None))
+            return encoded
+
+    engine = TimedEngine(model_config=config, model_path=str(target), quantize=4)
     engine.callbacks.register(MemorySaver(model=engine, keep_transformer=False))
 
     class Progress:
+        def call_before_loop(self, **kwargs):
+            stage('generation', 'Generating image')
+            self.last_step = time.monotonic()
+
+        def call_after_loop(self, **kwargs):
+            stage('decoding', 'Decoding image')
+
         def call_in_loop(self, t, seed, prompt, latents, config, time_steps):
-            emit('progress', value=100 * (t + 1) / max(1, config.num_inference_steps))
+            # MFLUX invokes callbacks before its own mx.eval; count completed steps.
+            mx.eval(latents)
+            now = time.monotonic()
+            emit('progress', value=100 * (t + 1) / max(1, config.num_inference_steps),
+                 step=t + 1, steps=config.num_inference_steps, step_seconds=now-self.last_step)
+            self.last_step = now
 
     engine.callbacks.register(Progress())
     if task != 'txt2img':
         options['image_paths'] = [request['input_img']]
-    emit('stage', message='Generating' if task == 'txt2img' else 'Editing')
+    stage('preparing', 'Preparing prompt' if task == 'txt2img' else 'Preparing prompt and input image')
     result = engine.generate_image(**options)
+    stage('saving', 'Saving image')
     out_dir = Path(request['output_dir'])
     out_dir.mkdir(parents=True, exist_ok=True)
     output = out_dir / ('mflux-' + uuid.uuid4().hex + '.png')
     result.save(str(output))
+    timings[phase] = time.monotonic() - phase_started
     # Timing is diagnostic for this run only, never a catalog rating or compatibility gate.
     emit('result', generated_img_path=str(output), elapsed_seconds=time.monotonic()-started,
-         peak_memory_bytes=mx.get_peak_memory(), engine='mflux', model=model['id'])
+         timings=timings, peak_memory_bytes=mx.get_peak_memory(), engine='mflux', model=model['id'])
 
 
 def main():
