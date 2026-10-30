@@ -6,14 +6,19 @@ import os
 from pathlib import Path
 import sys
 import time
+import threading
+import resource
+from diagnostics import system_memory, memory_delta
 import uuid
 
 CATALOG = json.loads(Path(__file__).with_name('models.json').read_text())
 OUTPUT = sys.stdout
+OUTPUT_LOCK = threading.Lock()
 
 
 def emit(kind, **values):
-    print('DBEXT ' + json.dumps({'event': kind, **values}), file=OUTPUT, flush=True)
+    with OUTPUT_LOCK:
+        print('DBEXT ' + json.dumps({'event': kind, **values}), file=OUTPUT, flush=True)
 
 
 def model_entry(model_id):
@@ -45,12 +50,51 @@ def validate_request(request):
 
 def install(request):
     from huggingface_hub import HfApi, snapshot_download
+    from huggingface_hub.utils import tqdm
     model = model_entry(request['id'])
     target = Path(request['models_dir']) / model['id']
     info = HfApi().model_info(model['repo'], revision=model.get('revision'), files_metadata=True)
-    emit('stage', message='Downloading model files. This can take several minutes.')
+    (target / '.installed.json').unlink(missing_ok=True)
+    emit('stage', message='Downloading model files. Existing files will be reused.')
+    progress = {'completed_files': 0, 'total_files': 0, 'transferred_bytes': 0}
+    progress_lock = threading.Lock()
+
+    class DownloadProgress(tqdm):
+        def __init__(self, *args, **kwargs):
+            self.report_kind = 'bytes' if kwargs.get('desc', '').startswith('Downloading bytes') else (
+                'files' if kwargs.get('desc', '').startswith('Fetching ') else None)
+            self.reported_at = 0
+            kwargs['disable'] = False
+            super().__init__(*args, **kwargs)
+
+        def display(self, *args, **kwargs):
+            pass  # Progress goes to the app, not terminal control sequences.
+
+        def update(self, n=1):
+            result = super().update(n)
+            self.report()
+            return result
+
+        def close(self):
+            if hasattr(self, 'n'):
+                self.report(force=True)
+            super().close()
+
+        def report(self, force=False):
+            if not self.report_kind or (not force and time.monotonic()-self.reported_at < 0.25):
+                return
+            self.reported_at = time.monotonic()
+            with progress_lock:
+                if self.report_kind == 'bytes':
+                    progress['transferred_bytes'] = self.n
+                else:
+                    progress.update(completed_files=self.n, total_files=self.total or 0)
+                emit('download', **progress)
+
     snapshot_download(model['repo'], revision=info.sha, local_dir=target,
-                      allow_patterns=['*.json', '*.safetensors', '*.jinja', '*.txt', '*.model', 'README.md'])
+                      allow_patterns=['*.json', '*.safetensors', '*.jinja', '*.txt', '*.model', 'README.md'],
+                      tqdm_class=DownloadProgress)
+    emit('stage', message='Verifying downloaded files…')
     files = {str(p.relative_to(target)): p.stat().st_size for p in target.rglob('*')
              if p.is_file() and '.cache' not in p.parts and p.name != '.installed.json'}
     if not any(name.endswith('.safetensors') for name in files):
@@ -73,6 +117,7 @@ def metadata(request):
 
 
 def generate(request):
+    memory_before = system_memory()
     started = time.monotonic()
     timings = {}
     phase = 'startup'
@@ -108,7 +153,9 @@ def generate(request):
             return encoded
 
     engine = TimedEngine(model_config=config, model_path=str(target), quantize=4)
-    engine.callbacks.register(MemorySaver(model=engine, keep_transformer=False))
+    # Override only for controlled diagnostics; the product default remains 1 GB.
+    cache_limit = int(os.environ.get('DBEXT_MLX_CACHE_LIMIT_BYTES', '1000000000'))
+    engine.callbacks.register(MemorySaver(model=engine, keep_transformer=False, cache_limit_bytes=cache_limit))
 
     class Progress:
         def call_before_loop(self, **kwargs):
@@ -139,7 +186,10 @@ def generate(request):
     timings[phase] = time.monotonic() - phase_started
     # Timing is diagnostic for this run only, never a catalog rating or compatibility gate.
     emit('result', generated_img_path=str(output), elapsed_seconds=time.monotonic()-started,
-         timings=timings, peak_memory_bytes=mx.get_peak_memory(), engine='mflux', model=model['id'])
+         timings=timings, peak_memory_bytes=mx.get_peak_memory(),
+         process_peak_bytes=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (1 if sys.platform == 'darwin' else 1024),
+         system_memory_delta=memory_delta(memory_before, system_memory()), cache_limit_bytes=cache_limit,
+         engine='mflux', model=model['id'])
 
 
 def main():

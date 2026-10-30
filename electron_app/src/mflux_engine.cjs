@@ -17,9 +17,9 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
         try {
             const marker = JSON.parse(fs.readFileSync(path.join(directory, '.installed.json'), 'utf8'));
             const valid = marker.repo === entry.repo && (!entry.revision || entry.revision === marker.revision) &&
-                Object.entries(marker.files).every(([name, size]) => fs.statSync(path.join(directory, name)).size === size);
-            return valid ? {asset_path:directory, bytes:marker.bytes, revision:marker.revision, status:'done'} : {};
-        } catch (_) { return {}; }
+                Object.keys(marker.files).length > 0 && Object.entries(marker.files).every(([name, size]) => fs.statSync(path.join(directory, name)).size === size);
+            return valid ? {asset_path:directory, bytes:marker.bytes, revision:marker.revision, status:'done'} : {partial:true};
+        } catch (_) { return fs.existsSync(directory) ? {partial:true} : {}; }
     }
     function job(command, request, onEvent = () => {}) {
         let child, settled = false, buffer = '', stderr = '', result, cancelled = false, killTimer;
@@ -69,12 +69,16 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
             try {backend = await probe.promise;} catch (error) {backend = {available:false,error:error.message};}
             finally {clearTimeout(timer);}
         }
-        return {...backend, models:catalog.map(entry => ({...entry, ...installed(entry)})), installing:(installation && installation.id) || null};
+        return {...backend, models:catalog.map(entry => ({...entry, ...installed(entry)})),
+            installing:(installation && installation.id) || null, install_progress:(installation && installation.progress) || null};
     }
-    async function install(id, progress) {
+    async function install(id, progress = () => {}) {
         model(id);
         if (installation || generation) throw new Error('Wait for the active model job to finish.');
-        const task = job('install', {id}, progress); installation = {...task,id};
+        const task = job('install', {id}, event => {
+            if (installation) installation.progress = {...installation.progress,...event};
+            progress(event);
+        }); installation = {...task,id};
         try { await task.promise; return {...model(id), ...installed(model(id))}; }
         finally {installation = null;}
     }

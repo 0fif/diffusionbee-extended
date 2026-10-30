@@ -1,0 +1,36 @@
+{
+  "mflux-flux2-klein-4b-4bit": {
+    "date": "2026-10-29",
+    "tasks": {
+      "txt2img": "tested",
+      "img2img": "tested",
+      "inpainting": "tested"
+    },
+    "note": "Generation and object recoloring checked. Selected edits use blending, not native mask conditioning. Precise eye correction is unreliable.",
+    "revision": "860e87183ceb29e39627c0612ebd66d8ea66e68c"
+  },
+  "FLUX.1-schnell": {
+    "date": "2026-10-29",
+    "tasks": {
+      "txt2img": "tested"
+    },
+    "note": "Text-to-image generation checked through the legacy backend."
+  },
+  "JuggernautXL_v7_f8": {
+    "date": "2026-10-29",
+    "tasks": {
+      "inpainting": "tested"
+    },
+    "note": "Selected editing checked at 1024 \u00d7 768; this does not establish reliable face correction."
+  },
+  "mflux-flux2-klein-9b-4bit": {
+    "date": "2026-10-29",
+    "tasks": {
+      "txt2img": "tested",
+      "img2img": "tested",
+      "inpainting": "tested"
+    },
+    "note": "Generation and object recoloring checked at 512 \u00d7 512, four steps. Editor selection checked at 1024 \u00d7 704 with unchanged unselected pixels. Selected edits use blending, not native mask conditioning. Face correction has not been validated.",
+    "revision": "f0c62655b9da432932ba24d4bfce8a96800cf0bd"
+  }
+}

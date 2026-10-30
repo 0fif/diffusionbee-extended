@@ -20,7 +20,8 @@
     "postuninstall": "electron-builder install-app-deps",
     "test:mflux": "node tests/mflux.cjs",
     "setup:mflux": "node scripts/setup-mflux.cjs",
-    "test:generation": "node tests/generation-status.cjs"
+    "test:generation": "node tests/generation-status.cjs",
+    "test:models": "node tests/model-details.cjs && electron tests/model-store.cjs"
   },
   "main": "background.js",
   "dependencies": {

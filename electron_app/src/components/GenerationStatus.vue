@@ -6,7 +6,10 @@
             <summary>Run details</summary>
             <dl><template v-for="(seconds, phase) in backend.diagnostics.timings"><dt :key="phase+'label'">{{labels[phase] || phase}}</dt><dd :key="phase">{{seconds.toFixed(1)}} s</dd></template>
                 <dt>Peak engine memory</dt><dd>{{(backend.diagnostics.peak_memory_bytes / 1073741824).toFixed(2)}} GiB</dd>
+                <template v-if="backend.diagnostics.process_peak_bytes"><dt>Peak process memory</dt><dd>{{(backend.diagnostics.process_peak_bytes / 1073741824).toFixed(2)}} GiB</dd></template>
+                <template v-if="backend.diagnostics.system_memory_delta"><dt>System swap-outs</dt><dd>{{(backend.diagnostics.system_memory_delta.Swapouts / 1048576).toFixed(1)}} MiB</dd><dt>System compression</dt><dd>{{(backend.diagnostics.system_memory_delta.Compressions / 1048576).toFixed(1)}} MiB</dd></template>
             </dl>
+            <p v-if="backend.diagnostics.system_memory_delta">Swap and compression changes cover the whole computer during this run, including other apps. Process and engine memory overlap.</p>
             <p>Measurements for this run and these settings. The first step can include input processing and deferred model loading.</p>
         </details>
     </div>

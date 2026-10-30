@@ -1,7 +1,15 @@
 import unittest
 from runner import validate_request, model_entry
+from diagnostics import parse_vm_stat, memory_delta
 
 class RequestTests(unittest.TestCase):
+    def test_system_memory_observations(self):
+        before = parse_vm_stat('Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPageouts: 2.\nSwapouts: 3.\nCompressions: 5.')
+        self.assertEqual(before['Swapouts'], 3*16384)
+        self.assertEqual(memory_delta(before, dict(before, Swapouts=4*16384))['Swapouts'], 16384)
+        self.assertIsNone(parse_vm_stat('unavailable'))
+        self.assertIsNone(memory_delta(None, before))
+
     def test_supported_image_request(self):
         model, options = validate_request({'selected_sd_model':'mflux-flux2-klein-4b-4bit',
             'prompt':'A café in rain', 'img_width':768, 'img_height':512})

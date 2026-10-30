@@ -81,7 +81,7 @@ export default {
                 let img = msg.substring(5).trim()
                 img = JSON.parse(img)
                 if(this.attached_cbs){
-                    this.diagnostics = img.timings ? {timings:img.timings, peak_memory_bytes:img.peak_memory_bytes} : null;
+                    this.diagnostics = img.timings ? {timings:img.timings, peak_memory_bytes:img.peak_memory_bytes, process_peak_bytes:img.process_peak_bytes, system_memory_delta:img.system_memory_delta} : null;
                     this.generation_state_msg = 'Finishing image';
                     const finishing = Date.now();
                     this.pending_result = Promise.resolve().then(() => this.attached_cbs && this.attached_cbs.on_img && this.attached_cbs.on_img(img))
