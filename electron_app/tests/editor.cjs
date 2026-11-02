@@ -159,7 +159,10 @@ async function run(root) {
   const page = new Function('GenerationStatus', 'composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
     'find_in_form_recursive', 'inpaint_assets', 'prep_sd_optins',
     pageSource.script.content.replace(/^import .*$/gm, '').replace('export default Inpainting;', 'return Inpainting;'))(
-      {template:'<div/>'}, compositeFunctions.composite_inpaint, compositeFunctions.prepare_inpaint_crop, p => require(path.resolve(root, 'src/pages', p)), component, basic, {template: '<div/>'},
+      {template:'<div/>'}, (...args) => {
+        assert.notStrictEqual(args[4], false, 'editor must not disable boundary matching for legacy models');
+        return compositeFunctions.composite_inpaint(...args);
+      }, compositeFunctions.prepare_inpaint_crop, p => require(path.resolve(root, 'src/pages', p)), component, basic, {template: '<div/>'},
       () => ({}), () => [], () => {});
   page.template = pageSource.template.content;
   const messages = [];
@@ -229,7 +232,7 @@ async function run(root) {
   assert.equal(prepared.width%64,0);assert.equal(prepared.height%64,0);
   const generated=document.createElement('canvas');generated.width=generated.height=512;
   generated.getContext('2d').fillStyle='red';generated.getContext('2d').fillRect(0,0,512,512);
-  const composed=await compositeFunctions.composite_inpaint(original.toDataURL(),selection.toDataURL(),generated.toDataURL(),prepared.crop);
+  const composed=await compositeFunctions.composite_inpaint(original.toDataURL(),selection.toDataURL(),generated.toDataURL(),prepared.crop,false);
   const composedImage=new Image();composedImage.src=composed;await composedImage.decode();
   assert.equal(composedImage.width,1600);assert.equal(composedImage.height,1200);
   originalCtx.drawImage(composedImage,0,0);
@@ -246,7 +249,7 @@ async function run(root) {
   ed.fillStyle='rgb(40,85,180)';ed.fillRect(105,75,40,40);
   const region=document.createElement('canvas');region.width=256;region.height=192;
   region.getContext('2d').fillRect(40,30,176,132);
-  const matched=await compositeFunctions.composite_inpaint(background.toDataURL(),region.toDataURL(),edit.toDataURL(),null,true);
+  const matched=await compositeFunctions.composite_inpaint(background.toDataURL(),region.toDataURL(),edit.toDataURL());
   const matchedImage=new Image();matchedImage.src=matched;await matchedImage.decode();bg.drawImage(matchedImage,0,0);
   const sample=(x,y)=>[...bg.getImageData(x,y,1,1).data];
   assert.deepStrictEqual(sample(20,20),[120,110,100,255],'color matching preserves unselected source exactly');

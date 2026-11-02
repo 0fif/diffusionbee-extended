@@ -252,7 +252,7 @@ const Inpainting = {
                     that.is_restoring = true;
                     try {
                         const composite = await composite_inpaint(img_url, that.retry_mask_cached, img_path.generated_img_path,
-                            that.retry_params.crop, sd_options_object.engine === 'mflux');
+                            that.retry_params.crop);
                         const saved = window.ipcRenderer.sendSync('save_b64_image', composite, true);
                         if (!saved || saved === 'NULL') throw new Error('Could not save the edited image.');
                         that.undo_history.push(img_url)

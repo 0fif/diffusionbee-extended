@@ -1,5 +1,5 @@
 // Composite at the original resolution, preserving every unmasked source pixel.
-export async function composite_inpaint(original, mask, generated, crop, matchBoundary = false) {
+export async function composite_inpaint(original, mask, generated, crop, matchBoundary = true) {
     const load = source => new Promise((resolve, reject) => {
         const image = new Image(); image.onload = () => resolve(image); image.onerror = reject;
         image.src = source.startsWith('data:') || source.startsWith('file:') ? source :
