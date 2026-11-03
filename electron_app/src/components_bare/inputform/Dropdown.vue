@@ -7,7 +7,7 @@
 
 
             <b-form-select v-model="form_values[config.id]" :options="config.options"
-                required></b-form-select>
+                required><template v-if="config.id === 'selected_sd_model' && !config.options.includes(form_values[config.id])" #first><b-form-select-option :value="form_values[config.id]" disabled>Choose an available model</b-form-select-option></template></b-form-select>
         </div>
 </template>
 <script>
@@ -39,6 +39,7 @@ export default {
     methods: {
         // if the selected option not in options list then reset the selected 
         reset_selected_if_invalid(){
+            if (this.config.id === 'selected_sd_model') return;
             if(!this.config.options.includes(this.form_values[this.config.id])){
                   if(this.config.options.length > 0){
                     if( this.config.default_value != undefined && this.config.options.includes(this.config.default_value) ){

@@ -125,6 +125,12 @@ async function run(root) {
   assert.equal(xlOptions.img_width,1024);assert.equal(xlOptions.img_height,1024);
   assert.equal(xlOptions.force_use_given_size,true);assert.equal(xlOptions.input_image_strength,80);
 
+  const dreamOptions={input_img:'photo.png',guidance_scale:7.5};
+  prepInpaint({sd_options:{selected_sd_model:'dream',input_image_strength:80,inp_only_update_masked:true},app:{assets_manager:{all_avail_assets:{dream:{model_meta_data:{type:'sd_model',sd_type:'SD_1x'}}},get_downloaded_asset_path:()=> 'control.tdict'}}},dreamOptions,'Generative Fill','mask.png');
+  assert.equal(dreamOptions.sd_mode_override,'img2img','Ordinary SD checkpoints must start from the photo');
+  assert.equal(dreamOptions.input_image_strength,80,'Preservation strength must reach the backend');
+  assert.equal(dreamOptions.mask_image_path,'mask.png');assert.equal(dreamOptions.controlnet_model,'Inpaint');
+
   const gallerySource=compiler.parseComponent(fs.readFileSync(path.join(root,'src/components_bare/GalleryPane.vue'),'utf8'));
   const gallery=new Function('GalleryImage',gallerySource.script.content.replace(/^import .*$/gm,'').replace('export default','return'))({template:'<div style="height:200px"/>'});
   gallery.template=gallerySource.template.content;
@@ -145,10 +151,24 @@ async function run(root) {
   window.removeEventListener('error',catchResize);galleryVm.$destroy();galleryHost.remove();
 
   const pageSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/pages/Inpainting.vue'), 'utf8'));
+  const detailSource = fs.readFileSync(path.join(root,'src/utils/model_details.js'),'utf8').replace(/^import .*$/gm,'').replace(/export /g,'');
+  const {tool_models} = new Function('validation','model_available',detailSource+';return {tool_models};')({},compat.model_available);
   const basicSource = compiler.parseComponent(fs.readFileSync(path.join(root, 'src/components/BasicSDApplet.vue'), 'utf8'));
-  const basicComponent = new Function('Form','TwoColAppletLayout','DownloadButton','Vue','apply_model_options','model_available','find_in_form_recursive',
+  const basicComponent = new Function('Form','TwoColAppletLayout','DownloadButton','Vue','apply_model_options','model_available','find_in_form_recursive','tool_models',
     basicSource.script.content.replace(/^import .*$/gm, '').replace('export default', 'return'))(
-    {}, {}, {}, Vue, compat.apply_model_options, compat.model_available, () => ({}));
+    {}, {}, {}, Vue, compat.apply_model_options, compat.model_available, () => ({}), tool_models);
+  const unavailable = {id:'flux', min_version:40, model_meta_data:{type:'flux_nnc'}};
+  const restricted = {id:'restricted',model_meta_data:{type:'mflux_model',tasks:['txt2img']}};
+  const choices = tool_models({flux:unavailable, restricted}, {build:29}, 'inpainting');
+  assert(!choices.some(m => ['flux','restricted'].includes(m.id)), 'unsupported tasks and unavailable engines excluded');
+  const selectionError = basicComponent.computed.model_selection_error.call({name:'inpainting',tool_models:choices,sd_options:{selected_sd_model:'restricted'}});
+  const blocked = [];
+  assert.equal(basicComponent.methods.check_input_form_n_show_error.call({model_selection_error:selectionError,app:{show_toast:msg=>blocked.push(msg)}}),false);
+  assert(blocked.length, 'stale selections blocked before backend preparation');
+  assert.equal(basicComponent.computed.model_selection_error.call({name:'inpainting',tool_models:[{id:'installed'}],sd_options:{selected_sd_model:'installed'}}),'');
+  assert(!pageSource.template.content.includes('Generate edit'), 'only one primary generate action');
+  assert.equal((pageSource.template.content.match(/Stop generation/g)||[]).length,1,'only one stop action');
+  assert.deepEqual(basicComponent.computed.to_download_left.call({model_selection_error:'No models',required_assets_modified:[{id:'Default_SD1.5'},{id:'SD1.5_Inpainting'}]}),[], 'Missing selection must not force stock downloads');
   const basic = { props: ['sd_options','app'], template: '<div><slot name="input_buttons"/><slot name="output_workpace"/></div>',
     methods: {check_input_form_n_show_error: basicComponent.methods.check_input_form_n_show_error,
       get_sd_form_outputs() {return basicComponent.methods.get_sd_form_outputs.call({
@@ -157,19 +177,19 @@ async function run(root) {
   const compositeSource = fs.readFileSync(path.join(root, 'src/utils/composite_inpaint.js'), 'utf8');
   const compositeFunctions = new Function(compositeSource.replace(/export /g, '') + '; return {composite_inpaint, prepare_inpaint_crop};')();
   const page = new Function('GenerationStatus', 'composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
-    'find_in_form_recursive', 'inpaint_assets', 'prep_sd_optins',
+    'find_in_form_recursive', 'inpaint_assets', 'prep_sd_optins', 'tool_models',
     pageSource.script.content.replace(/^import .*$/gm, '').replace('export default Inpainting;', 'return Inpainting;'))(
       {template:'<div/>'}, (...args) => {
         assert.notStrictEqual(args[4], false, 'editor must not disable boundary matching for legacy models');
         return compositeFunctions.composite_inpaint(...args);
       }, compositeFunctions.prepare_inpaint_crop, p => require(path.resolve(root, 'src/pages', p)), component, basic, {template: '<div/>'},
-      () => ({}), () => [], () => {});
+      () => ({}), () => [], () => {}, tool_models);
   page.template = pageSource.template.content;
   const messages = [];
   let callbacks;
   let jobs = 0;
   const backend = {is_input_avail: true, text_to_img: (options, cb) => {assert.equal(options.prompt, 'Fix her eyes', 'fill-bar prompt reaches backend on generate and retry');callbacks = cb; jobs++;}};
-  const app = {assets_manager: {all_avail_assets:{}, get_downloaded_asset: () => ({}), get_downloaded_asset_path: () => file}, stable_diffusion: backend, functions: {}, show_toast: msg => messages.push(msg)};
+  const app = {assets_manager: {all_avail_assets:{'SD1.5_Inpainting':{id:'SD1.5_Inpainting',model_meta_data:{type:'sd_model_inpaint'}}}, get_downloaded_asset: () => ({}), get_downloaded_asset_path: () => file}, stable_diffusion: backend, functions: {}, show_toast: msg => messages.push(msg)};
   window.ipcRenderer = {sendSync: () => file};
   vm.$destroy();
   document.body.innerHTML = '<div id="page"></div>';

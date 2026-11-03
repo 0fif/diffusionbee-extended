@@ -3,6 +3,7 @@
         
         <template v-slot:input_workspace>
               <slot name="input_workspace_pre_form"></slot>
+              <p v-if="model_selection_error && name !== 'inpainting'" class="model-selection-notice" role="status"><span>{{model_selection_error}}</span> <button class="model-selection-action" type="button" @click="app.functions.switch_page('ModelStore')">Open Models</button></p>
               <Form ref="form"  :form_data="input_form_elements_processed"  :form_values="sd_options" :form_save_key="'1fdaedjdfddeef1'+name" :tags="all_tags" ></Form>
               <div @click="$refs.form.reset_to_default()" class="l_button" style="margin-left:-10px"> Reset to default </div>
               <slot name="input_workspace_post_form"></slot>
@@ -33,6 +34,7 @@ import Form from "../components_bare/Form.vue"
 import TwoColAppletLayout from "../components_bare/TwoColAppletLayout.vue"
 import DownloadButton from "./DownloadButton.vue"
 import Vue from 'vue'
+import {tool_models} from '../utils/model_details.js'
 import {apply_model_options, model_available} from '../utils/model_compatibility.js'
 import {find_in_form_recursive} from "../utils.js"
 
@@ -151,6 +153,10 @@ export default {
         } , 
 
         check_input_form_n_show_error(){
+            if (this.model_selection_error) {
+                this.app.show_toast(this.model_selection_error);
+                return false;
+            }
             const selected = this.app.assets_manager.get_downloaded_asset(this.sd_options.selected_sd_model);
             if (selected && !model_available(selected, this.app.backend_info)) {
                 this.app.show_toast('This model needs the newer Apple Silicon backend.');
@@ -186,6 +192,15 @@ export default {
         }
     },
     computed : {
+        tool_models(){
+            return tool_models(this.app.assets_manager.all_avail_assets, this.app.backend_info, this.name);
+        },
+        model_selection_error(){
+            if (!['txt2img','img2img','inpainting'].includes(this.name)) return '';
+            if (!this.tool_models.length) return 'No models available for this tool. Download a model in Models.';
+            return this.tool_models.some(model => model.id === this.sd_options.selected_sd_model) ? '' :
+                'Choose an available model for this tool. You can download models in Models.';
+        },
         all_tags(){
             console.log("sddd options ")
             console.log(this.sd_options)
@@ -200,12 +215,11 @@ export default {
             // add the avail models to the form
             let el = find_in_form_recursive( "selected_sd_model" , form)
             if(el){
-                let assets = Object.values(this.app.assets_manager.all_avail_assets)
-                assets = assets.filter(x => x.model_meta_data && (this.model_options_types ||["sd_model"]).includes(x.model_meta_data.type))
-                let new_ids = assets.map(x => x.id)
-                for( let idd of new_ids){
-                    if(!el['options'].includes(idd))
-                        el['options'].push(idd)
+                if (['txt2img','img2img','inpainting'].includes(this.name)) {
+                    el.options = this.tool_models.map(model => model.id);
+                } else {
+                    el.options = Object.values(this.app.assets_manager.all_avail_assets)
+                        .filter(x => x.model_meta_data && (this.model_options_types || ['sd_model']).includes(x.model_meta_data.type)).map(x => x.id);
                 }
             }
 
@@ -301,6 +315,7 @@ export default {
         },
 
         to_download_left(){
+            if (this.model_selection_error) return [];
             let to_download = []
            
             for(let asset of this.required_assets_modified){
@@ -315,6 +330,10 @@ export default {
 }
 </script>
 <style>
+.model-selection-notice {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;padding:12px;font-size:13px;line-height:1.5;color:var(--text-color-solid);}
+.model-selection-action {appearance:none;border:1px solid var(--border-color-invert);border-radius:6px;background:var(--color-bg);color:var(--text-color-solid);padding:6px 10px;font:inherit;font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap;}
+.model-selection-action:hover {background:var(--button-highlight-one);}
+.model-selection-action:focus-visible {outline:2px solid #4988db;outline-offset:2px;}
 </style>
 <style scoped>
 

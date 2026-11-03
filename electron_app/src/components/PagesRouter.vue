@@ -115,7 +115,7 @@ export default {
                 let applet = this.app.app_state.registered_ext_applets[applet_id]
                 items.push( { id: applet.id  , 
                     text : applet.title , 
-                    icon : applet.icon , 
+                    icon : applet.id === 'frame_interpolate' ? 'film' : applet.icon ,
                     description : applet.description , 
                     home_category: applet.home_category,
                     sidebar_show: applet.sidebar_show,

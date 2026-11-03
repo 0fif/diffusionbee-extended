@@ -2,21 +2,18 @@
     <BasicSDApplet class="inpaint-applet" :class="{'settings-hidden': !show_settings}" :app="app" :input_form="input_form_elements_processed" :sd_options="sd_options"
         name="inpainting" :form_tags="form_tags_computed" :required_assets="required_assets"
         ref="basic_sd_applet" :model_options_types="model_options_types">
-        <template v-slot:input_buttons>
-            <button v-if="is_sd_active" class="editor-button primary generate" :disabled="!inp_img || is_post_generate_box_showing" @click="generate(false)">Generate edit</button>
-            <button v-else-if="is_mounted && stable_diffusion.generated_by === 'Inpainting'" class="editor-button generate" :disabled="is_stopping" @click="stop_all">{{is_stopping ? 'Stopping…' : 'Stop generation'}}</button>
-        </template>
         <template v-slot:output_workpace>
             <section class="photo-editor">
                 <div class="editor-toolbar" aria-label="Image controls">
                     <button class="editor-button" :disabled="!is_sd_active" @click="open_input_image">Open image</button>
                     <button class="editor-button" :disabled="!inp_img || !is_sd_active" @click="save_img">Save image</button>
-                    <label class="editor-model">Model <select v-model="sd_options.selected_sd_model" :disabled="!is_sd_active"><option v-for="model in editor_models" :key="model.id" :value="model.id">{{model.title || model.id}}</option></select></label>
+                    <label class="editor-model">Model <select v-model="sd_options.selected_sd_model" :disabled="!is_sd_active"><option v-if="!editor_models.some(model => model.id === sd_options.selected_sd_model)" :value="sd_options.selected_sd_model" disabled>Choose an available model</option><option v-for="model in editor_models" :key="model.id" :value="model.id">{{model.title || model.id}}</option></select></label>
                     <button class="editor-button" :aria-pressed="show_settings" @click="show_settings = !show_settings">Settings</button>
                     <span class="toolbar-spacer"></span>
                     <button class="editor-button" :disabled="!undo_history.length || !is_sd_active" @click="do_undo">Undo edit</button>
                     <button class="editor-button" :disabled="!redo_history.length || !is_sd_active" @click="do_redo">Redo edit</button>
                 </div>
+                <p v-if="!editor_models.some(model => model.id === sd_options.selected_sd_model)" class="model-selection-notice" role="status"><span>{{editor_models.length ? 'Choose an available model for this tool. You can download models in Models.' : 'No models available for this tool. Download a model in Models.'}}</span> <button type="button" class="model-selection-action" @click="app.functions.switch_page('ModelStore')">Open Models</button></p>
                 <div v-if="inp_img" class="editor-toolbar" aria-label="Mask tools">
                     <div class="tool-group" aria-label="Tool">
                         <button v-for="item in tools" :key="item.id" class="editor-button" :aria-pressed="tool === item.id" :title="item.hint" @click="tool = item.id">{{item.label}}</button>
@@ -43,12 +40,12 @@
                     </div>
                 </div>
                 <div v-if="inp_img && !is_post_generate_box_showing" class="fill-bar">
-                    <label for="fill-prompt">{{mask_state.drawn ? 'Describe your edit' : 'Select an area to edit'}}</label>
+                    <label for="fill-prompt">{{mask_state.drawn ? (instruction_edit ? 'Describe your edit' : 'Describe the replacement') : 'Select an area to edit'}}</label>
                     <div class="fill-input">
-                        <textarea id="fill-prompt" v-model="sd_options.prompt" rows="2" placeholder="Describe what you want in the selected area…" :disabled="!is_sd_active" @keydown.meta.enter.prevent="generate(false)" @keydown.ctrl.enter.prevent="generate(false)"></textarea>
-                        <button class="editor-button primary" :disabled="!is_sd_active || !mask_state.drawn || !sd_options.prompt.trim()" @click="generate(false)">Generate fill</button>
+                        <textarea id="fill-prompt" v-model="sd_options.prompt" rows="2" :placeholder="instruction_edit ? 'Describe the change, for example: replace the blue shirt with a red shirt…' : 'Describe the finished area, for example: a red cotton shirt, natural lighting…'" :disabled="!is_sd_active" @keydown.meta.enter.prevent="generate(false)" @keydown.ctrl.enter.prevent="generate(false)"></textarea>
+                        <button class="editor-button primary" :disabled="!is_sd_active || !mask_state.drawn || !sd_options.prompt.trim() || !editor_models.some(model => model.id === sd_options.selected_sd_model)" @click="generate(false)">Generate fill</button>
                     </div>
-                    <span class="editor-hint">Paint or select the area to replace. Everything outside your mask stays unchanged.</span>
+                    <span class="editor-hint">{{instruction_edit ? 'This model edits from instructions. The app blends the selected area back into your photo.' : 'Describe what should appear in the selection. This model generates a replacement from your description.'}} Everything outside your mask stays unchanged.</span>
                 </div>
                 <div v-if="is_post_generate_box_showing" class="review-bar" aria-label="Review generated edit">
                     <strong>Review your edit</strong>
@@ -77,6 +74,7 @@
 </template>
 
 <script>
+import {tool_models} from '../utils/model_details.js'
 import GenerationStatus from "../components/GenerationStatus.vue"
 
 import {composite_inpaint, prepare_inpaint_crop} from '../utils/composite_inpaint.js'
@@ -100,7 +98,7 @@ const Inpainting = {
     },
     data() {
         return {
-            sd_options : {"num_imgs":"1", "prompt":"", "selected_sd_model":"SD1.5_Inpainting", "inp_only_update_masked":true, "input_image_strength":80},
+            sd_options : {"num_imgs":"1", "prompt":"", "selected_sd_model":"", "inp_only_update_masked":true, "input_image_strength":80},
             backend_error : "",
             is_mounted: false,
             is_stopping : false,
@@ -120,10 +118,12 @@ const Inpainting = {
         };
     },
     computed : {
+        instruction_edit(){
+            const meta = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
+            return ['flux2_klein_4b','flux2_klein_9b'].includes(meta.sd_type);
+        },
         editor_models(){
-            const available = Object.values(this.app.assets_manager.all_avail_assets).filter(asset => asset.model_meta_data && ['sd_model','sd_model_inpaint','mflux_model'].includes(asset.model_meta_data.type));
-            if (!available.some(asset => asset.id === 'SD1.5_Inpainting')) available.unshift({id:'SD1.5_Inpainting',title:'SD 1.5 Inpainting'});
-            return available;
+            return tool_models(this.app.assets_manager.all_avail_assets, this.app.backend_info, 'inpainting');
         },
 
         is_sd_active(){
@@ -137,7 +137,8 @@ const Inpainting = {
         }, 
 
         form_tags_computed(){
-            if ((this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data?.sd_type === "sdxl_base" || this.sd_options.outpaint_function_name =="Image To Image"){
+            const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
+            if (metadata.engine !== 'mflux' && (metadata.type === 'sd_model' || metadata.sd_type === 'sdxl_base' || this.sd_options.outpaint_function_name === "Image To Image")){
                 return ['inpainting', 'input_image_strength']
             }
 
@@ -170,7 +171,7 @@ const Inpainting = {
         },
         generate(is_retry){
 
-            if(!this.is_sd_active)
+            if(!this.is_sd_active || (this.is_post_generate_box_showing && !is_retry))
                 return;
 
             if (!this.inp_img || !this.$refs.inp_img_canvas || !this.$refs.inp_img_canvas.is_ready) {

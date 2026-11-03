@@ -12,7 +12,7 @@
     >   
         
         <template v-slot:input_buttons>
-            <div v-if="app.stable_diffusion_manager.is_ready" @click="generate" class="l_button button_colored button_medium" style="float:right">Generate</div>
+            <button v-if="app.stable_diffusion_manager.is_ready" :disabled="is_mounted && !!$refs.basic_sd_applet.model_selection_error" @click="generate" class="l_button button_colored button_medium" style="float:right">Generate</button>
 
             <div v-else-if="is_input_changed_after_last_run " @click="generate" class="l_button button_colored button_medium" style="float:right">Add to Queue</div>
 

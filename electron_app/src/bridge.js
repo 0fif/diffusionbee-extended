@@ -22,6 +22,12 @@ const modernEngine = createMfluxEngine({
     outputDir: path.join(require('os').homedir(), '.diffusionbee/images'),
     emit: line => {if (win && !is_app_closing) win.webContents.send('to_renderer', 'py2b ' + line);}
 });
+const resolveDownloadSize = require('./model_previews.cjs').createDownloadSizeResolver();
+ipcMain.handle('model-download-size', (_, model, refresh) => resolveDownloadSize(model, refresh));
+const resolvePreview = require('./model_previews.cjs').createPreviewResolver();
+const resolveModelMetadata = require('./model_previews.cjs').createMetadataResolver();
+ipcMain.handle('model-metadata', (_, model, refresh) => resolveModelMetadata(model, refresh));
+ipcMain.handle('model-preview', (_, model, refresh) => resolvePreview(model, refresh));
 ipcMain.handle('mflux-remove', (_, id) => modernEngine.remove(id));
 ipcMain.handle('mflux-status', () => modernEngine.status());
 ipcMain.handle('mflux-metadata', (_, id) => modernEngine.metadata(id));

@@ -79,7 +79,8 @@ function prep_sd_optins(self , sd_options_object, mode , img_mask_url){
                 sd_options_object.guidance_scale = ( (sd_options_object.guidance_scale || 7.5) - 3.5 )
                 if(sd_options_object.guidance_scale <= 1)
                     sd_options_object.guidance_scale = 1
-                sd_options_object.sd_mode_override = "txt2img"
+                sd_options_object.sd_mode_override = "img2img"
+                sd_options_object.input_image_strength = Number(self.sd_options.input_image_strength ?? 80)
                 sd_options_object.controlnet_tdict_path= self.app.assets_manager.get_downloaded_asset_path("just_control_v11p_sd15_inpaint_fp16")
 
             } else {

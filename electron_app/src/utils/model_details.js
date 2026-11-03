@@ -8,7 +8,11 @@ export function model_tasks(model) {
     if (meta.type === 'controlnet_model') return [];
     if (meta.type === 'sd_model_inpaint') return ['inpainting'];
     if (meta.type === 'flux_nnc') return ['txt2img'];
-    return ['txt2img', 'img2img', 'inpainting'];
+    return meta.type === 'sd_model' ? ['txt2img', 'img2img', 'inpainting'] : [];
+}
+// The catalog and tool selectors share these task and availability rules.
+export function tool_models(assets, backend, task) {
+    return Object.values(assets).filter(model => model_tasks(model).includes(task) && model_available(model, backend));
 }
 export function task_checks(model, backend) {
     const supported = model_tasks(model);
