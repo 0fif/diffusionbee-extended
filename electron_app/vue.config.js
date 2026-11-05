@@ -18,8 +18,7 @@ module.exports = {
             builderOptions: {
                 appId: 'com.0fif.diffusionbee-extended',
                 productName: 'DiffusionBee Extended',
-                forceCodeSigning: process.env.EXTENDED_RELEASE === '1',
-                afterSign: './scripts/notarize.cjs',
+                afterPack: './scripts/adhoc-sign.cjs',
                 artifactName: 'DiffusionBee-Extended-${version}-${arch}.${ext}',
                 extraResources: [
                     {from: resources, to: '.', filter: ['**/*']},
@@ -28,7 +27,8 @@ module.exports = {
                 ],
                 mac: {
                     icon: 'build/Icon-1024.png',
-                    hardenedRuntime: true,
+                    identity: null,
+                    hardenedRuntime: false,
                     entitlements: 'build/entitlements.mac.plist',
                     entitlementsInherit: 'build/entitlements.mac.plist',
                     minimumSystemVersion: '26.0.0',

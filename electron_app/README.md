@@ -24,7 +24,7 @@ DIFFUSIONBEE_APP=/Applications/DiffusionBee.app npm run electron:serve:release
 
 The official Apple Silicon **2.5.3** app bundle was tested on this machine. Its bundled Python runtime and native Apple GPU libraries avoid the old source backend's TensorFlow setup. Obtain the bundle from the [official release](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/releases/tag/2.5.3). The launcher does not download anything. `.runtime/` is ignored by git; binaries and model weights are not redistributed in this repository.
 
-The frontend keeps its upstream package version, but queries the actual backend build asynchronously. A supported build-40 Apple Silicon backend enables the restored SDXL and Flux catalog paths. Flux uses the same **Text to image** screen and model selector as Stable Diffusion. Unsupported backend/model combinations remain gated.
+Extended uses its own package version and queries the actual backend build asynchronously. A supported build-40 Apple Silicon backend enables the restored SDXL and Flux catalog paths. Flux uses the same **Text to image** screen and model selector as Stable Diffusion. Unsupported backend/model combinations remain gated.
 
 Development hot reload is disabled by default to avoid destroying an active editing session. Set `DIFFUSIONBEE_LIVE_RELOAD=1` to opt in while developing; restart deliberately after changing code otherwise.
 
@@ -36,7 +36,7 @@ On October 28, 2026, the official 2.5.3 backend successfully generated with SD 1
 
 `test:editor` checks original-size compositing and unchanged unmasked pixels, mask coordinates, strokes, undo/redo, loading races, and generation/review guards with mocked callbacks. It does not assess generated-image quality. Live browser input checks also confirmed wheel zoom, captured pointer panning/release, and repeated viewport resizing from 770×550 to 1070×700 without runtime errors.
 
-The launcher uses DiffusionBee's existing `~/.diffusionbee` data directory. The local backend and model files live in ignored `.runtime/`. Signing and packaging an Extended installer are not verified.
+The launcher uses DiffusionBee's existing `~/.diffusionbee` data directory. The local backend and model files live in ignored `.runtime/`. Standalone packaging, bundled generation and Upscaler checks now pass; see the packaging section below for current release requirements.
 
 ### Source-only backend
 
@@ -66,10 +66,11 @@ rejects external runtime symlinks and probes the staged engine. It never copies
 downloaded generation models or user images. `npm run package:local` builds an app for local
 verification; set `CSC_IDENTITY_AUTO_DISCOVERY=false` for an unsigned test build.
 
-`npm run package:release` requires a Developer ID signing identity and
-`APPLE_KEYCHAIN_PROFILE` for `notarytool`; it fails if signing/notarization fails
-and never publishes automatically. Public distribution remains pending release
-verification and legacy-backend source provenance.
+`npm run package:release` applies an ad-hoc signature, verifies the full app bundle,
+and builds DMG/ZIP artifacts. It needs no Apple Developer account and does not
+notarize or publish automatically. First-launch approval instructions are in the
+root README. Public distribution remains pending final checks and legacy-backend
+source provenance.
 
 Packaged modern models use the app's writable user-data `models` directory.
 Existing images/history remain under `~/.diffusionbee` for compatibility.

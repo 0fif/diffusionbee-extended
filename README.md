@@ -1,140 +1,120 @@
 # DiffusionBee Extended
-An independent fork of [DiffusionBee by Divam Gupta](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui), focused on reliable image editing and inpainting.
 
-This fork starts from upstream commit `daf82f8` (December 2023, source version 2.3.0). It is **not** the source of the newer upstream 2.5.x binaries. No Extended installer has been released yet; the download links below refer to upstream.
+**Local image generation and photo editing for Mac, with modern models and a more capable editor.**
 
-## Editor and model improvements
+Extended is an independent fork of [DiffusionBee](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui) by Divam Gupta. It keeps the original idea—generate images locally without assembling a Python environment—and builds on the editor, model management, and everyday workflows.
 
-- Fix mask clicks landing away from the cursor and gaps in fast brush strokes.
-- Restore masks after image loading on Retry/Discard; keep failed jobs out of undo history.
-- Add zoom, pan, brush/eraser/rectangle selection, mask undo/redo, and a generative-fill prompt with Compare/Keep/Discard/Try again.
-- Composite edits at original resolution while preserving unmasked pixels.
-- Restore SDXL and Flux model handling with a compatible release backend; select Flux in Text to image.
-- Validate missing images and empty masks before starting inpainting.
-- Add an isolated MFLUX image engine with FLUX.2 Klein generation/editing and searchable Installed/Discover model management. See [modern backend setup](backends/mflux/README.md).
+**Release status:** a self-contained macOS installer has been built and tested locally. A public release has **not** been published yet. Updates and installers will appear on [this fork's Releases page](https://github.com/0fif/diffusionbee-extended/releases). Upstream DiffusionBee downloads are a different application.
 
-See [development instructions](electron_app/README.md) and the [upstream bug and PR review](docs/UPSTREAM_REVIEW.md) for verification, known limitations, and next priorities. SD 1.5 inpainting/Retry, JuggernautXL text-to-image, and Flux Schnell text-to-image have been verified with the official 2.5.3 release backend. A packaged Extended release remains unverified.
+## Why this fork?
 
-The original project attribution and [AGPL-3.0 license](LICENSE) are retained. Model licenses are separate and continue to apply.
+DiffusionBee made local image generation approachable. We wanted to keep that simplicity while improving three things:
 
-## Upstream project information
+- **More useful photo editing.** Select an area, zoom in, adjust the mask, describe the change, and compare the result without forcing the entire photo into a square.
+- **Newer image models.** Integrate modern engines into familiar tools, with model choices based on the task rather than separate tabs for each architecture.
+- **A dependable workflow.** Make generation progress, cancellation, downloads, History, and export behave consistently—including when something fails.
 
-[![Twitter](https://img.shields.io/twitter/url.svg?label=Follow%20%40divamgupta&style=social&url=https%3A%2F%2Ftwitter.com%2Fdivamgupta)](https://twitter.com/divamgupta)
+Extended is a continuation of that work, not an official DiffusionBee update or a promise of Photoshop-level editing quality.
 
+## What we've added and improved
 
+### A more capable photo editor
 
-### Diffusion Bee is the easiest way to run Stable Diffusion locally on your Intel / M1 Mac. Comes with a one-click installer. No dependencies or technical knowledge needed.
+- Cursor-centered zoom, panning, Fit and 100% views.
+- Brush, eraser, and rectangle selections, with mask undo/redo.
+- A selection-based prompt area and Compare, Keep, Discard, and Try again controls.
+- Automatic working-crop sizing around the selection, with surrounding image context.
+- Aspect-preserving processing and original-size photo output. Fully unmasked pixels stay unchanged when the generated edit is composited back.
+- Boundary blending to reduce visible color and exposure seams.
+- JPEG and PNG export, with the selected format retained through History.
 
-* Runs locally on your computer no data is sent to the cloud ( other than request to download the weights or unless you chose to upload an image ).
-*  *If you like Diffusion Bee, consider checking https://Liner.ai , a one-click tool to train machine learning models*
+The model processes a working crop; that crop's resolution does not become the final photo's resolution. Editing a small area also does not make generation instantaneous.
 
-<br>
+### Modern models in the existing tools
 
-[![Download](https://user-images.githubusercontent.com/1890549/189538422-52d50488-c1fa-4924-bec6-186c9e0f307b.png)](https://diffusionbee.com/)
+The integrated MFLUX engine brings newer image models to **Text to image**, **Image to image**, and **Inpainting**. The legacy engine retains existing Stable Diffusion, SDXL, and supported FLUX workflows.
 
-Download at https://diffusionbee.com/
+| Modern model family | Text to image | Image to image | Selected edits |
+| --- | --- | --- | --- |
+| FLUX.2 Klein 4B / 9B | Yes | Yes | Yes |
+| FIBO 2 Edit Turbo | Yes | Yes | Yes |
+| Qwen Image 2.1 Turbo | — | Yes | Yes |
 
+These are the routes implemented in Extended, not a claim that every model produces equally good results. Selected edits may use native masking or instruction editing followed by compositing, depending on the model and mode. See [model validation](backends/mflux/VALIDATION.md) for specific checks and limitations.
 
-<br>
+### Clearer model management
 
-For prompt ideas visit https://arthub.ai
+- Installed models and a searchable catalog, with task and engine filters.
+- Compatibility checks before generation; an empty library stays empty until you choose a model.
+- Source links, publisher previews, download sizes and other metadata when supplied by the source.
+- Download progress, cancellation, verification, and resumable modern-model downloads.
+- Consistent removal confirmation and no silent replacement of your selected model.
 
-Join discord server : https://discord.gg/t6rC5RaJQn
+The catalog combines supported modern-model integrations with the upstream legacy catalog. **It is not a general Hugging Face browser.** A repository needs a compatible architecture, format, and implemented inference route before the app can use it. An image model's bundled text encoder is part of that model—not a separate chat feature.
 
+### More reliable everyday use
 
-## Features
-* Full data privacy - nothing is sent to the cloud ( unless you chose to upload an image )
-* Clean and easy to use UI with one-click installer
-* Image to image
-* Supported models : - SD 1.x, SD 2.x, SD XL, Inpainting, ControlNet, LoRA
-* Download models from the app
-* In-painting
-* Out-painting
-* Generation history
-* Upscaling images
-* Multiple image sizes
-* Optimized for M1/M2 Chips
-* Runs locally on your computer
-* Negative prompts
-* Advanced prompt options
-* ControlNet
+- Distinct loading, generation, and finishing states, elapsed time, and run diagnostics.
+- Stop waits for the worker to exit before accepting another job.
+- Completed editing attempts save to History, including results followed by Try again or Discard.
+- History persists across restarts; failed and unfinished images are excluded.
+- Upscaler uses the photographic Real-ESRGAN model, saves durable results, and records them in History.
+- Image previews open in isolated windows without application IPC or Node access.
+- Updated Electron and Vue foundations, with regression checks for editing, model handling, downloads, persistence, and export.
 
+## Requirements and installation
 
-## How to use 
+The current installer target is **Apple Silicon (M1 or newer), macOS 26 or newer**. That macOS requirement comes from the bundled MLX runtime. This build does not claim Intel Mac, Windows, or Linux support.
 
-1) Download and start the application
+The app includes its engines and Python runtime. **Users do not need another DiffusionBee installation, Python, Homebrew, or developer tools.** Choose and download generation models inside the app; model weights are separate from the installer and can require several gigabytes each. Memory needs and generation speed depend on the model, working resolution, and available system memory.
 
-![image](https://user-images.githubusercontent.com/1890549/198916443-c6a2e40a-3d1e-4000-882d-993aa1941391.png)
+Once a public release is available:
 
+1. Download the DMG from [Extended's Releases page](https://github.com/0fif/diffusionbee-extended/releases).
+2. Open it and drag **DiffusionBee Extended** into Applications.
+3. Launch the app. This project does not use Apple Developer ID signing or notarization. If macOS blocks the first launch, use **System Settings → Privacy & Security → Open Anyway** for the app you just downloaded. See [Apple's instructions](https://support.apple.com/en-us/102445). There is no need to disable Gatekeeper system-wide.
+4. Open **Models**, choose a compatible model, and download it.
+5. Choose a tool and select the installed model.
 
-2) Enter a prompt and click generate
+The release build applies an ad-hoc code signature for integrity checks. This is **not** Apple notarization or verification of the publisher's identity.
 
-Text to image:
+## Local processing and storage
 
-![Screenshot 2023-12-13 at 1 19 38 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/3ee8e70b-ea17-4b26-8069-6d8c65aaa729)
+Image generation and editing run locally. Internet access is used to retrieve model catalogs, metadata, previews, and model downloads. Any optional image-sharing action is separate from local generation.
 
+Packaged modern models are stored in the application's writable user-data directory. For compatibility with existing installations, images and History currently remain under `~/.diffusionbee`; that location can also be used by upstream DiffusionBee. Removing a model does not remove your generated images.
 
+## Known limitations
 
-Image to image:
+- Precise facial corrections and identity preservation are not guaranteed. A successful generation or a clean mask boundary does not establish that the requested edit looks right.
+- Not every catalog model/task combination has been tested. Architecture support and a successful check of one checkpoint are different things.
+- Interpolator uses the legacy backend and compatible legacy models. Its actual video-render workflow still needs end-to-end verification in the release candidate.
+- The candidate has passed standalone launch, bundled-engine generation, Upscaler, History reopening, and preview checks. Public distribution remains pending final release checks and resolution of the legacy backend's source provenance. See [release-source details](docs/RELEASE_SOURCE.md).
 
-![Screenshot 2023-12-13 at 1 14 35 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/ceb4b799-5003-47c6-a689-1a5dcd110935)
+## Development and contributing
 
-Multiple Apps:
+See [development and packaging instructions](electron_app/README.md), [modern backend setup](backends/mflux/README.md), and [model validation](backends/mflux/VALIDATION.md).
 
-![Screenshot 2023-12-13 at 1 11 14 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/5deb2129-b1c7-4f25-9718-754aa9a96008)
+Useful checks from `electron_app`:
 
+```sh
+npm run test:editor
+npm run test:models
+npm run test:generation
+npm run test:mflux
+npm run test:history
+npm run test:export
+npm run test:legacy
+npm run test:preload
+npm run test:runtime
+```
 
-Image to image with mask:
+Report bugs and feature requests in [this fork's issue tracker](https://github.com/0fif/diffusionbee-extended/issues). Include the app version, macOS version, Mac/chip, selected model, tool, and steps to reproduce. Remove personal prompts, images, and paths from logs before sharing them. Please direct Extended-specific issues here rather than to the original developer.
 
-![image](https://user-images.githubusercontent.com/1890549/198915075-dba8e90f-47f6-4915-87b5-fd09c17a58e5.png)
+## Credits and license
 
-Inpainting:
+Extended starts from DiffusionBee's public source at `daf82f8` and retains its [AGPL-3.0 license](LICENSE) and original authorship. It is independently maintained and is not affiliated with or endorsed by the original project.
 
-![image](https://user-images.githubusercontent.com/1890549/198915349-6261dc9e-c24d-4fb0-98a2-973b429914b8.png)
+Thanks to [Divam Gupta and DiffusionBee contributors](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui), the [MFLUX contributors](https://github.com/mflux-community/mflux), [MLX](https://github.com/ml-explore/mlx), and [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN), along with the model authors and the open-source projects used by the original application.
 
-![image](https://user-images.githubusercontent.com/1890549/198915395-71d4d278-2434-4e21-aea6-42988593941a.png)
-
-Advanced AI Canvas:
-
-![Screenshot 2023-12-13 at 1 13 59 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/f01273d3-6a01-4498-8d11-5f46b9946213)
-
-
-![image](https://user-images.githubusercontent.com/1890549/198916091-62872915-af1d-4553-b657-934c1c8c7aca.png)
-
-ControlNet:
-
-![Screenshot 2023-12-13 at 1 12 43 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/55f8d6b0-2f18-4706-9771-999f379a8e4d)
-
-![Screenshot 2023-12-13 at 1 12 22 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/53f5e3ef-6398-4c43-aeb6-0f1ded052a9a)
-
-
-Download Models:
-
-![Screenshot 2023-12-13 at 1 13 08 PM](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/assets/1890549/4202ba4e-f33f-47e7-bd27-26b1b93142db)
-
-
-History:
-
-![image](https://user-images.githubusercontent.com/1890549/198916678-9061829c-69da-4eee-b28d-1989e01c11e0.png)
-
-
-### To learn more, visit the [documentation](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/blob/master/docs/DOCUMENTATION.md).
-
-## Requirements 
-* Mac with Intel or M1/M2 CPU
-* For Intel : MacOS 12.3.1 or later 
-* For M1/M2 : MacOS 11.0.0 or later 
-
-License : Stable Diffusion is released under the CreativeML OpenRAIL M license : https://github.com/CompVis/stable-diffusion/blob/main/LICENSE
-Diffusion Bee is just a GUI wrapper on top of Stable Diffusion, so all the term of Stable Diffusion are applied on the outputs. 
-
-
-
-References
-1) https://github.com/CompVis/stable-diffusion
-2) https://github.com/madebyollin/maple-diffusion
-3) https://github.com/divamgupta/stable-diffusion-tensorflow
-4) https://github.com/liuliu/swift-diffusion (big thanks to Liu Liu)
-5) https://github.com/huggingface/diffusers
-
- 
+Models and bundled dependencies have their own licenses. The application's license does not replace a model's terms, and the terms are not identical across all supported models.

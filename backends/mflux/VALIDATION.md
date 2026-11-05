@@ -1,6 +1,6 @@
 # Model checks and performance investigation
 
-These are functional checks and local diagnostics, not hardware requirements or universal speed ratings. Packaging remains deferred.
+These are functional checks and local diagnostics, not hardware requirements or universal speed ratings. Standalone packaging checks are recorded in the root README and development guide.
 
 ## Reproducible model checks
 
@@ -42,6 +42,6 @@ Use `backends/mflux/verify_models.py` with `--models-dir`, `--output-dir`, and `
 
 ## Models page
 
-Actual generated previews are bundled for the two modern models. Unknown publisher thumbnails have a visible fallback and retry on Refresh. Task filters include image-to-image; task-specific validation distinguishes Tested, Untested, Unsupported, and Needs engine. Metadata has explicit loading/failure/retry states and preserves valid zero counts. Downloads show completed files and transferred bytes; incomplete packages remain resumable and are never registered as installed until verification finishes. Cancelling waits for the worker to exit. File counts are shown rather than pretending compressed network bytes equal installed size.
+Previews are retrieved from model sources. Missing or unavailable publisher thumbnails have a visible fallback and retry on Refresh. Task filters include image-to-image; task-specific validation distinguishes Tested, Untested, Unsupported, and Needs engine. Metadata has explicit loading/failure/retry states and preserves valid zero counts. Downloads show completed files and transferred bytes; incomplete packages remain resumable and are never registered as installed until verification finishes. Cancelling waits for the worker to exit. File counts are shown rather than pretending compressed network bytes equal installed size.
 
 Automated checks: Python request/memory/download-interruption tests; Node model/task/revision and worker cancellation/resumption tests; real Vue/Electron Models rendering and search/filter/metadata/progress/empty states at 1070 and 770 pixels.

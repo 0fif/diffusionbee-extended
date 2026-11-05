@@ -10,5 +10,5 @@ console.log('PASS: packaged engines are relocatable, models are writable, develo
 
 const previous=process.env.EXTENDED_RELEASE;process.env.EXTENDED_RELEASE='1';
 const builder=require('../vue.config.js').pluginOptions.electronBuilder.builderOptions;
-assert.equal(builder.forceCodeSigning,true);assert(builder.afterSign,'Release must run notarization');
+assert.equal(builder.mac.identity,null);assert.equal(builder.afterPack,'./scripts/adhoc-sign.cjs','Release must apply and verify its ad-hoc signature');
 if(previous===undefined)delete process.env.EXTENDED_RELEASE;else process.env.EXTENDED_RELEASE=previous;

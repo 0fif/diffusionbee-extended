@@ -6,7 +6,7 @@ Extended runs MFLUX alongside the existing DiffusionBee backend. Models choose t
 
 From `electron_app`, run `npm run setup:mflux` using Python 3.11 or newer. Set `MFLUX_SETUP_PYTHON` if that Python is not the default `python3`. The installer creates an isolated `.runtime/mflux-env` and installs `mflux==0.24.0`. It does not install weights. Then run `npm run electron:serve:release` and use Models → Discover to download a supported image model.
 
-The development defaults put model packages in `.runtime/mflux-models`. `MFLUX_PYTHON`, `MFLUX_RUNNER`, and `MFLUX_MODEL_DIR` can override the executable, runner, and storage directory. Generated images use the existing `~/.diffusionbee/images` directory. Packaging this second runtime in a distributable installer is still separate release work.
+The development defaults put model packages in `.runtime/mflux-models`. `MFLUX_PYTHON`, `MFLUX_RUNNER`, and `MFLUX_MODEL_DIR` can override the executable, runner, and storage directory. Generated images use the existing `~/.diffusionbee/images` directory. The standalone candidate bundles this runtime and stores modern models in its writable user-data directory; no separate Python installation is required by app users. See the root README for release status.
 
 ## Supported integration
 
