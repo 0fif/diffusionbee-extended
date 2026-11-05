@@ -4,7 +4,7 @@
 
 Extended is an independent fork of [DiffusionBee](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui) by Divam Gupta. It keeps the original idea—generate images locally without assembling a Python environment—and builds on the editor, model management, and everyday workflows.
 
-**Public beta:** [Download 0.1.0-beta.1 for Apple Silicon Macs](https://github.com/0fif/diffusionbee-extended/releases/tag/v0.1.0-beta.1). Requires macOS 26 or newer. The installer includes both engines and Python; generation models download inside the app.
+**Public beta:** [Download 0.1.0-beta.2 for Apple Silicon Macs](https://github.com/0fif/diffusionbee-extended/releases/tag/v0.1.0-beta.2). Requires macOS 26 or newer. The installer includes both engines and Python; generation models download inside the app.
 
 ## Why this fork?
 
@@ -103,6 +103,7 @@ npm run test:models
 npm run test:generation
 npm run test:mflux
 npm run test:history
+npm run test:navigation
 npm run test:export
 npm run test:legacy
 npm run test:preload

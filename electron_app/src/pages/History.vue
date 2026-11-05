@@ -204,6 +204,7 @@ const History =  {
         },
 
         delete_hist(k){
+            if (!this.history[k] || !native_confirm('Remove this entry from History? The image files will be kept.')) return false;
             const history = {...this.history};
             delete history[k];
             return this.save_history(history);

@@ -28,7 +28,6 @@
 
 import Txt2Img from "../pages/Txt2Img.vue"
 import Img2Img from "../pages/Img2Img.vue"
-import Training from "../pages/Training.vue"
 import Inpainting from "../pages/Inpainting.vue"
 
 import History from "../pages/History.vue"
@@ -48,7 +47,7 @@ export default {
     },
     components: {
         Txt2Img, Img2Img , Inpainting , AppletPage , History, Homepage , ModelStore, 
-        Logs, ContactUs , Settings, PostProcessImage, Training
+        Logs, ContactUs , Settings, PostProcessImage
     },
     mounted() {
         this.app.functions.switch_page = this.switch_page; 
@@ -57,18 +56,10 @@ export default {
     data() {
 
         let always_on_pages = { Homepage:Homepage  , Txt2Img:Txt2Img , Img2Img:Img2Img , 
-            Inpainting:Inpainting , PostProcessImage:PostProcessImage  , ModelStore:ModelStore , History:History, Logs:Logs, Settings:Settings , Training:Training, ContactUs:ContactUs  }
-
-        let last_opened_timmings = {}
-
-        let v =  window.localStorage.getItem( 'last_opened_times_7768' )
-        if(v){
-            last_opened_timmings = JSON.parse(v)
-        }
+            Inpainting:Inpainting , PostProcessImage:PostProcessImage  , ModelStore:ModelStore , History:History, Logs:Logs, Settings:Settings, ContactUs:ContactUs  }
 
         return {
             current_open_page_id : 'Homepage',
-            last_opened_timmings : last_opened_timmings,
             always_on_pages : always_on_pages         };
     },
     methods: {
@@ -77,9 +68,6 @@ export default {
             this.app.current_selected_tab = page_id
             this.app.current_applet_title = this.current_applet_title()
 
-            this.last_opened_timmings[page_id] = Date.now()
-
-            window.localStorage.setItem('last_opened_times_7768', JSON.stringify(this.last_opened_timmings));
 
         }, 
 
@@ -108,12 +96,11 @@ export default {
                         home_category:this.always_on_pages[page_id].home_category } )
             }
 
-            // todo : in future count the last used N applets, and then show them on sidebar, and sort them alphabetically
             for(let applet_id of Object.keys(this.app.app_state.registered_ext_applets)){
                 let applet = this.app.app_state.registered_ext_applets[applet_id]
                 items.push( { id: applet.id  , 
                     text : applet.title , 
-                    icon : applet.id === 'frame_interpolate' ? 'film' : applet.icon ,
+                    icon : ({frame_interpolate: 'film', deforum: 'film', lora_training: 'microchip', lora_merger: 'tools'})[applet.id] || applet.icon || 'file' ,
                     description : applet.description , 
                     home_category: applet.home_category,
                     sidebar_show: applet.sidebar_show,
@@ -125,33 +112,8 @@ export default {
         },
 
         all_sidebar_items(){
-            let always_on_items =  this.all_applet_items.filter(x => x.sidebar_show == "always");
-
-            let always_on_items_dict = {}
-            for(let a of always_on_items)
-                always_on_items_dict[a.id] = a 
-
-            let never_on_items =  this.all_applet_items.filter(x => x.sidebar_show == "never");
-
-            let never_on_items_dict = {}
-            for(let a of never_on_items)
-                never_on_items_dict[a.id] = a 
-
-            let llist = []
-            for(let k in this.last_opened_timmings){
-                if(always_on_items_dict[k] == undefined && never_on_items_dict[k] == undefined)
-                    llist.push([k , this.last_opened_timmings[k] ])
-            }
-            
-
-            llist = llist.sort((a, b) => b[1] - a[1]) // sort from large time to small time
-            llist = llist.slice(0,5)
-            llist = llist.map( x => x[0])            
-
-            let last_5_opened_items =  this.all_applet_items.filter(x => llist.includes(x.id) );
-
-            return always_on_items.concat(last_5_opened_items);
-
+            return this.all_applet_items.filter(item => item.sidebar_show !== 'never' &&
+                (item.sidebar_show === 'always' || !!item.home_category));
         }
     }
 }

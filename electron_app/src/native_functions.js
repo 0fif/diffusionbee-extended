@@ -325,31 +325,16 @@ ipcMain.on('show_about', (event, arg) => {
 
 
 
-ipcMain.on('native_confirm', (event, arg) => {
-
-    if (win) {
-        
-        const choice = require('electron').dialog.showMessageBoxSync(this, {
-            type: 'question',
-            buttons: ['Yes', 'No'],
-            title: require('../package.json').productName ,
-            message: arg
-        });
-        if (choice === 1) {
-            event.returnValue = false ;
-        }
-        else{
-            event.returnValue = true ;
-        }
-
-    }
-    else{
-        event.returnValue = false ;
-    }
-
-})
-
-
+ipcMain.on('native_confirm', (event, message) => {
+    event.returnValue = win ? require('electron').dialog.showMessageBoxSync(win, {
+        type: 'question',
+        buttons: ['Yes', 'No'],
+        defaultId: 1,
+        cancelId: 1,
+        title: require('../package.json').productName,
+        message
+    }) === 0 : false;
+});
 
 ipcMain.on('close_window', (event, arg) => {
 

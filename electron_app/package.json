@@ -1,6 +1,6 @@
 {
   "name": "diffusionbee-extended",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "build_number": "0029",
   "website": "https://github.com/0fif/diffusionbee-extended",
   "description": "Independent DiffusionBee fork with modern local image generation and editing.",
@@ -30,7 +30,8 @@
     "stage:runtime": "node scripts/stage-runtime.cjs",
     "package:local": "vue-cli-service electron:build --mac --arm64 --dir --publish never",
     "test:runtime": "node tests/runtime-paths.cjs",
-    "package:release": "EXTENDED_RELEASE=1 vue-cli-service electron:build --mac --arm64 --publish never"
+    "package:release": "EXTENDED_RELEASE=1 vue-cli-service electron:build --mac --arm64 --publish never",
+    "test:navigation": "electron tests/navigation.cjs"
   },
   "main": "background.js",
   "dependencies": {
