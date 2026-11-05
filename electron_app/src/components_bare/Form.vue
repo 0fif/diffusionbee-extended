@@ -18,9 +18,6 @@
 <script>
 
 import ResolveInputComponent from './inputform/ResolveInputComponent.vue'
-import Vue from 'vue'
-
-
 // TODO: add conditional rendering of some form elements based on values of other elements
 
 export default {
@@ -41,7 +38,7 @@ export default {
             for( let key of this.keys_to_save ){
                 let v = window.localStorage.getItem(this.form_save_key + "__" + key  );
                 if(v != null && v != undefined && v != "undefined" && v != "null"){
-                    Vue.set(this.form_values , key , v )
+                    this.form_values[key] = v
                 }
             }
 
@@ -93,7 +90,7 @@ export default {
             }
             for( let form_el of elements){
                 if( this.form_values[form_el.id] != undefined  && form_el.default_value ){
-                    Vue.set(this.form_values , form_el.id , form_el.default_value  )
+                    this.form_values[form_el.id] = form_el.default_value
                 } else if(this.form_values[form_el.id] != undefined){
                     this.form_values[form_el.id] = ""
                 }

@@ -6,7 +6,7 @@
         <div style="height: 60px ; padding:10px ; width:100% ">
             
             <b-form-input
-                @input="currentPage=1"
+                @update:model-value="currentPage=1"
                 onkeypress="return event.keyCode != 13;"
                 size="sm"
                 placeholder="Search by prompt text"
@@ -47,7 +47,7 @@
                     <div @click="delete_hist(group.key)" style="float:right; margin-top: 10px;"  class="l_button">Delete</div>
                     <!-- <div @click="share_on_arthub(group)" style="float:right; margin-top: 10px;"  class="l_button">Share</div> -->
 
-                    <b-dropdown left variant="link" size="sm" toggle-class="text-decoration-none" no-caret style="float:right; margin-top: 5px;">
+                    <b-dropdown no-fade placement="bottom-start" variant="link" size="sm" toggle-class="text-decoration-none" no-caret style="float:right; margin-top: 5px;">
                         <template #button-content>
                             <div   class=" l_button "  >
                                 Share 
@@ -65,7 +65,8 @@
                         <span style="opacity: 0.5;" v-if="get_box_params_str(group)"> {{get_box_params_str(group)}} </span>
                         <br   v-if="get_box_params_str(group)">
                         
-                        {{group.params.prompt}}
+                        <span v-if="group.recovered">Recovered image · {{new Date(group.recovered_at).toLocaleDateString()}}<br></span>
+                        {{group.params.prompt || (group.recovered ? 'Original prompt unavailable' : group.params.applet_name === 'upscale' ? 'Upscaled image' : '')}}
 
 
                     </p>
@@ -98,7 +99,6 @@ import GalleryPane from "../components_bare/GalleryPane.vue"
 import {image_manu_functions} from "../components/image_menu_functions.js"
 import {open_popup , form_params_to_text , form_params_to_readable_dict, migrate_history_only_once} from "../utils"
 
-import Vue from 'vue'
 import Fuse from 'fuse.js'
 
 const History =  {
@@ -168,16 +168,6 @@ const History =  {
        },
     },
 
-    watch: {
-        'history': {
-            handler: function() {
-                this.save_history()
-            },
-            deep: false
-        } , 
-    }, 
-
-
     methods: {
 
 
@@ -200,12 +190,13 @@ const History =  {
             history_vals = JSON.parse(JSON.stringify(history_vals))
             console.log("got to hist")
             console.log(history_vals)
-            if(history_vals.imgs.length == 0)
-                return
+            history_vals.imgs = (history_vals.imgs || []).filter(img => img.image_url && img.image_url !== 'ERROR');
+            if(history_vals.imgs.length == 0) return false;
+            history_vals.num_imgs = history_vals.imgs.length;
             history_vals.params = history_vals.imgs[0].params
             history_vals.key = k
             history_vals.prompt = history_vals.params.prompt
-            Vue.set(this.history ,  k , history_vals )
+            return this.save_history({...this.history, [k]: history_vals});
         },
 
         on_image_click(image_item_data){
@@ -213,15 +204,25 @@ const History =  {
         },
 
         delete_hist(k){
-            Vue.delete( this.history , k );
+            const history = {...this.history};
+            delete history[k];
+            return this.save_history(history);
         },
 
-        save_history(){
-            window.ipcRenderer.sendSync('save_data', {"history": this.history} , 'history.json');
+        save_history(history = this.history){
+            try {
+                const saved = window.ipcRenderer.sendSync('save_data', JSON.parse(JSON.stringify({history})), 'history.json');
+                if (saved !== true) throw new Error('History could not be written to disk.');
+                this.history = history;
+                return true;
+            } catch (error) {
+                this.app.show_toast('Could not save History. ' + error.message);
+                return false;
+            }
         },
 
         toggle_order() {
-           Vue.set( this, "show_history_in_oldest_first", !this.show_history_in_oldest_first);
+           this["show_history_in_oldest_first"] = !this.show_history_in_oldest_first;
         },
 
         on_image_menu_item_click(menu_item_id , image_item_data){
@@ -234,7 +235,7 @@ const History =  {
 
          clear_history(){
             if (native_confirm("Are you sure you want to clear history?")){
-                Vue.set( this , "history", {});
+                this.save_history({});
             }
         },
 

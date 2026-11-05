@@ -1,6 +1,13 @@
+import {supports_controlnet} from './model_compatibility.js'
+
+function controlnet_supported(self) {
+    const model = self.app.assets_manager.all_avail_assets[self.sd_options.selected_sd_model] || {};
+    return supports_controlnet(model.model_meta_data);
+}
 
 
 function controlnet_required_assets(self , to_download){
+    if (!controlnet_supported(self)) return;
     if( self.sd_options.controlnet_model && self.sd_options.controlnet_model == "Depth" ){
         to_download.push( {
             "id": "just_control_sd15_depth_fp16",
@@ -134,6 +141,7 @@ function controlnet_required_assets(self , to_download){
 }
 
 function controlnet_proc_form_outputs(self , options){
+    if (!controlnet_supported(self)) return;
     if(options.controlnet_model && options.controlnet_model == "Depth" ){
         options.controlnet_tdict_path = self.app.assets_manager.get_downloaded_asset_path("just_control_sd15_depth_fp16")
 
@@ -167,11 +175,12 @@ function controlnet_proc_form_outputs(self , options){
 
 }
 
-function controlnet_check_inputs(self , vue){
+function controlnet_check_inputs(self){
+    if (!controlnet_supported(self)) return true;
     
     if(self.sd_options.controlnet_model && self.sd_options.controlnet_model != "None" ){
         if((!self.sd_options.controlnet_input_image_path) || self.sd_options.controlnet_input_image_path == ""){
-            vue.$toast.default("You have selected a ControlNet model but not specified an image.")
+            self.app.show_toast("You have selected a ControlNet model but not specified an image.")
              return false;
         }
         

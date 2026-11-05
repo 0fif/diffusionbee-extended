@@ -1,13 +1,7 @@
-import Vue from 'vue'
-
-Vue.config.productionTip = false
-
-// setup the vue libs 
-import {} from "./init_vue_libs.js"
-
+import { createApp } from 'vue'
+import { installVueLibraries } from './init_vue_libs.js'
 import AppDemoUI from './AppDemoUI.vue'
 
-
-new Vue({
-  render: h => h(AppDemoUI),
-}).$mount('#app')
+const application = createApp(AppDemoUI)
+installVueLibraries(application)
+application.mount('#app')

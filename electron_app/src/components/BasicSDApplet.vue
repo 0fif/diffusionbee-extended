@@ -33,9 +33,9 @@
 import Form from "../components_bare/Form.vue"
 import TwoColAppletLayout from "../components_bare/TwoColAppletLayout.vue"
 import DownloadButton from "./DownloadButton.vue"
-import Vue from 'vue'
+
 import {tool_models} from '../utils/model_details.js'
-import {apply_model_options, model_available} from '../utils/model_compatibility.js'
+import {apply_model_options, model_available, supports_controlnet} from '../utils/model_compatibility.js'
 import {find_in_form_recursive} from "../utils.js"
 
 function prep_sd_options(options){
@@ -87,10 +87,10 @@ export default {
                 raw_options = options.raw_form_options
             }
 
-            for(let k of Object.keys(options)){
+            for(let k of Object.keys(raw_options)){
                 if(raw_options[k] != undefined){
                     console.log("setting " + k )
-                    Vue.set(this.sd_options, k ,  raw_options[k])
+                    this.sd_options[k] = raw_options[k]
                 }
                     
             }
@@ -133,7 +133,8 @@ export default {
             }
 
             // if possible get the input image masks and stuff
-            if(options.input_img){
+            const selected = this.app.assets_manager.get_downloaded_asset(options.selected_sd_model) || {};
+            if(options.input_img && selected.model_meta_data?.engine !== 'mflux'){
                 if(this.get_mask_b64){
                     let mask_b64 = this.get_mask_b64()
                     if(mask_b64){
@@ -148,7 +149,6 @@ export default {
                 }
             }
 
-            const selected = this.app.assets_manager.get_downloaded_asset(options.selected_sd_model) || {};
             return apply_model_options(options, selected.model_meta_data)
         } , 
 
@@ -188,7 +188,7 @@ export default {
     watch: {
         'sd_options.selected_sd_model'(id) {
             const meta = (this.app.assets_manager.get_downloaded_asset(id) || {}).model_meta_data || {};
-            this.$set(this.sd_options, 'num_steps', meta.steps || (meta.sd_type === 'flux_schnell' ? 4 : 25));
+            this.sd_options['num_steps'] = meta.steps || (meta.sd_type === 'flux_schnell' ? 4 : 25);
         }
     },
     computed : {
@@ -196,7 +196,8 @@ export default {
             return tool_models(this.app.assets_manager.all_avail_assets, this.app.backend_info, this.name);
         },
         model_selection_error(){
-            if (!['txt2img','img2img','inpainting'].includes(this.name)) return '';
+            if (this.name === 'applet_frame_interpolate' && !this.tool_models.length) return 'Interpolator requires a legacy Stable Diffusion model. Your installed models are not supported by this tool.';
+            if (!['txt2img','img2img','inpainting','applet_frame_interpolate'].includes(this.name)) return '';
             if (!this.tool_models.length) return 'No models available for this tool. Download a model in Models.';
             return this.tool_models.some(model => model.id === this.sd_options.selected_sd_model) ? '' :
                 'Choose an available model for this tool. You can download models in Models.';
@@ -215,16 +216,19 @@ export default {
             // add the avail models to the form
             let el = find_in_form_recursive( "selected_sd_model" , form)
             if(el){
-                if (['txt2img','img2img','inpainting'].includes(this.name)) {
+                if (['txt2img','img2img','inpainting','applet_frame_interpolate'].includes(this.name)) {
                     el.options = this.tool_models.map(model => model.id);
                 } else {
                     el.options = Object.values(this.app.assets_manager.all_avail_assets)
                         .filter(x => x.model_meta_data && (this.model_options_types || ['sd_model']).includes(x.model_meta_data.type)).map(x => x.id);
                 }
+                el.option_labels = Object.fromEntries(Object.values(this.app.assets_manager.all_avail_assets).map(model => [model.id, model.title || model.id]));
+                const section = find_in_form_recursive('selected_sd_model_desc', form);
+                if (section) section.full_width = true;
             }
 
             const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
-            if ((metadata.type === 'flux_nnc' || metadata.engine === 'mflux') || metadata.sd_type === 'sdxl_base') {
+            if (!supports_controlnet(metadata)) {
                 const controlnet = find_in_form_recursive('controlnet_acc', form);
                 if (controlnet) controlnet.exclude_in = [...(controlnet.exclude_in || []), ...(this.form_tags || [])];
             }
@@ -241,6 +245,10 @@ export default {
             }
             // get the functions to get the mask and stuff
             el =  find_in_form_recursive( "input_img" , form)
+            if (el && metadata.engine === 'mflux') {
+                el.draw_mask = false;
+                el.store_masked_image = false;
+            }
             if(el && el.draw_mask && el.store_masked_image){
                 el.request_objects_from_element = "yes"
                 el.request_objects_from_element_fn = this.request_ojects_from_img_element

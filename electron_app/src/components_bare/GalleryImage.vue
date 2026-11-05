@@ -16,7 +16,7 @@
                 </div>
 
                  <div v-if="image_url" class="cdiv gall_top_right_btn_container" style=" position:absolute ; margin-top:7px ; margin-left:7px "  >
-                    <b-dropdown left variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
+                    <b-dropdown no-fade placement="bottom-start" variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
                         <template #button-content>
                             <div   class=" l_button button_colored" style="background-color: rgba(0,0,0,0.6);">
                                 Actions 

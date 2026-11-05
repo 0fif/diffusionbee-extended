@@ -1,6 +1,3 @@
-import Vue from 'vue'
-
-
 import {native_alert} from "./native_functions_vue_bridge.js"
 
 var app_component_object;
@@ -21,7 +18,7 @@ function update_state(msg) {
 
 
         let final_key = keys[keys.length - 1];
-        Vue.set(object_to_update, final_key, JSON.parse(value))
+        object_to_update[final_key] = JSON.parse(value)
 
 
     } else {
@@ -64,7 +61,7 @@ function add_log(msg) {
         if( out.length > 10000000){
             out = out.slice(-1 * 5000000 )
         }
-        Vue.set(app_component_object.app_state, 'logs' , out );
+        app_component_object.app_state['logs'] = out;
     }
     
 }

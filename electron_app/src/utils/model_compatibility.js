@@ -8,7 +8,16 @@ function model_available(model, backend) {
         (type === 'sd_model' || type === 'flux_nnc'));
 }
 
+// These controls belong to the legacy SD ControlNet implementation.
+function supports_controlnet(metadata = {}) {
+    return metadata.type === 'sd_model' && metadata.sd_type !== 'sdxl_base' && metadata.engine !== 'mflux';
+}
+
 function apply_model_options(options, metadata = {}) {
+    if (!supports_controlnet(metadata)) {
+        delete options.controlnet_model;
+        options.is_control_net = false;
+    }
     if (metadata.engine === 'mflux') {
         options.engine = 'mflux';
         delete options.model_tdict_path;
@@ -27,4 +36,4 @@ function apply_model_options(options, metadata = {}) {
     return options;
 }
 
-export {model_available, apply_model_options};
+export {model_available, apply_model_options, supports_controlnet};

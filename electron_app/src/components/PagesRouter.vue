@@ -41,8 +41,6 @@ import Settings from "../pages/Settings.vue"
 import PostProcessImage from "../pages/PostProcessImage.vue"
 import AppletPage from "../components/AppletPage.vue"
 
-import Vue from 'vue'
-
 export default {
     name: 'PagerRouter',
     props: {
@@ -79,7 +77,7 @@ export default {
             this.app.current_selected_tab = page_id
             this.app.current_applet_title = this.current_applet_title()
 
-            Vue.set(this.last_opened_timmings , page_id , Date.now()  )
+            this.last_opened_timmings[page_id] = Date.now()
 
             window.localStorage.setItem('last_opened_times_7768', JSON.stringify(this.last_opened_timmings));
 

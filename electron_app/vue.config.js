@@ -7,6 +7,12 @@ try {
 
 
 module.exports = {
+    chainWebpack(config) {
+        config.plugin('define').tap(args => {
+            args[0].__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
+            return args;
+        });
+    },
     devServer: {hot: process.env.DIFFUSIONBEE_LIVE_RELOAD === '1', liveReload: false},
     
     pluginOptions: {

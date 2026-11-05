@@ -1,5 +1,5 @@
 // Composite at the original resolution, preserving every unmasked source pixel.
-export async function composite_inpaint(original, mask, generated, crop, matchBoundary = true) {
+export async function composite_inpaint(original, mask, generated, crop, matchBoundary = true, content) {
     const load = source => new Promise((resolve, reject) => {
         const image = new Image(); image.onload = () => resolve(image); image.onerror = reject;
         image.src = source.startsWith('data:') || source.startsWith('file:') ? source :
@@ -9,13 +9,17 @@ export async function composite_inpaint(original, mask, generated, crop, matchBo
     const layer = document.createElement('canvas'); layer.width = base.width; layer.height = base.height;
     const ctx = layer.getContext('2d');
     const area = crop || {x:0,y:0,width:base.width,height:base.height};
-    ctx.drawImage(result, area.x, area.y, area.width, area.height);
+    const region = content || {x:0,y:0,width:1,height:1};
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(result, region.x * result.width, region.y * result.height,
+        region.width * result.width, region.height * result.height,
+        area.x, area.y, area.width, area.height);
     if (matchBoundary) match_selection_colors(ctx, base, selection, area);
     // Feather inward: soften a hard selection without changing any unselected pixels.
     const feather = document.createElement('canvas');
     feather.width = area.width; feather.height = area.height;
     const maskCtx = feather.getContext('2d');
-    const radius = Math.max(1, area.width / result.width * 4);
+    const radius = Math.max(1, area.width / (result.width * region.width) * 4);
     maskCtx.filter = `blur(${radius}px)`;
     maskCtx.drawImage(selection, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
     const pixels = maskCtx.getImageData(0, 0, area.width, area.height);
@@ -82,7 +86,7 @@ function match_selection_colors(ctx, base, selection, area) {
 }
 
 // Work on the masked region at model resolution instead of shrinking the entire photo.
-export function prepare_inpaint_crop(image, mask, resolution) {
+export function prepare_inpaint_crop(image, mask, resolution, contextResolution = resolution === 'auto' ? 1024 : resolution, retouch = false, minimumResolution = 512) {
     const width = image.width, height = image.height;
     const alpha = mask.getContext('2d').getImageData(0, 0, width, height).data;
     let left = width, top = height, right = -1, bottom = -1;
@@ -94,20 +98,33 @@ export function prepare_inpaint_crop(image, mask, resolution) {
     }
     if (right < 0) throw new Error('Draw a mask before generating.');
     const boxWidth = right-left+1, boxHeight = bottom-top+1;
-    const padding = Math.max(resolution / 4, Math.max(boxWidth, boxHeight));
+    const padding = retouch ? Math.max(64, Math.max(boxWidth, boxHeight) / 3) :
+        Math.max(contextResolution / 4, Math.max(boxWidth, boxHeight));
     const crop = {width: Math.min(width, Math.ceil(boxWidth+padding*2)),
         height: Math.min(height, Math.ceil(boxHeight+padding*2))};
+    if (resolution === 'auto') {
+        resolution = Math.min(contextResolution, Math.max(minimumResolution, Math.round(Math.max(crop.width, crop.height) / 64) * 64));
+    }
     const scale = resolution / Math.max(crop.width, crop.height);
     const modelWidth = Math.max(64, Math.round(crop.width*scale/64)*64);
     const modelHeight = Math.max(64, Math.round(crop.height*scale/64)*64);
     crop.x = Math.max(0, Math.min(width-crop.width, Math.floor((left+right-crop.width)/2)));
     crop.y = Math.max(0, Math.min(height-crop.height, Math.floor((top+bottom-crop.height)/2)));
+    // Align the model canvas without stretching the source. Keep the content
+    // rectangle normalized so decoding at a different size remains aligned.
+    const fit = Math.min(modelWidth / crop.width, modelHeight / crop.height);
+    const drawWidth = crop.width * fit, drawHeight = crop.height * fit;
+    const drawX = (modelWidth - drawWidth) / 2, drawY = (modelHeight - drawHeight) / 2;
+    const content = {x:drawX/modelWidth,y:drawY/modelHeight,width:drawWidth/modelWidth,height:drawHeight/modelHeight};
     const render = (source, isMask) => {
         const canvas = document.createElement('canvas'); canvas.width = modelWidth; canvas.height = modelHeight;
         const ctx = canvas.getContext('2d');
-        if (isMask) {ctx.fillStyle='black';ctx.fillRect(0,0,modelWidth,modelHeight);ctx.filter='grayscale(1) brightness(10000)';}
-        ctx.drawImage(source,crop.x,crop.y,crop.width,crop.height,0,0,modelWidth,modelHeight);
+        ctx.fillStyle = isMask ? 'black' : '#808080';
+        ctx.fillRect(0,0,modelWidth,modelHeight);
+        if (isMask) ctx.filter='grayscale(1) brightness(10000)';
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(source,crop.x,crop.y,crop.width,crop.height,drawX,drawY,drawWidth,drawHeight);
         return canvas.toDataURL();
     };
-    return {crop, width:modelWidth, height:modelHeight, image:render(image,false), mask:render(mask,true)};
+    return {crop, content, width:modelWidth, height:modelHeight, image:render(image,false), mask:render(mask,true)};
 }

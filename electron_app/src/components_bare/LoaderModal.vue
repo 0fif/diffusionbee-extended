@@ -1,6 +1,6 @@
 @import '../assets/css/theme.css';
 <template>
-    <center>
+    <div style="text-align:center">
         
         <div class="center loader_box">
             
@@ -18,7 +18,7 @@
             </p>
         </div>
 
-    </center>
+    </div>
 </template>
 <script>
 import MoonLoader from 'vue-spinner/src/MoonLoader.vue'

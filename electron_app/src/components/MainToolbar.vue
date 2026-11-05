@@ -1,10 +1,10 @@
 <template>
-    <div> 
+    <div class="toolbar-actions">
         
         <MoonLoader v-if="is_sd_busy" class="moonloader1" color="var(--title-icon_color)" size="20px" style="position:fixed; margin-left:18px; margin-top:5px; z-index:20 ; pointer-events: none;"></MoonLoader>
 
         
-        <b-dropdown right variant="link" offset="40"  size="sm" toggle-class="text-decoration-none" no-caret style="margin-right: -11px ;">
+        <b-dropdown no-fade placement="bottom-end" variant="link" offset="40"  size="sm" toggle-class="text-decoration-none" no-caret style="margin-right: -11px ;">
             <template #button-content>
                <span class="title_bar_icon" > 
                    <!--  <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg" style=" margin-top:-2px ">
@@ -43,7 +43,7 @@
             </svg>
          </span> -->
 
-         <b-dropdown right variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
+         <b-dropdown no-fade placement="bottom-end" variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
                 <template #button-content>
                    <span class="title_bar_icon" > 
                         <font-awesome-icon   icon="ellipsis-v" style="zoom:1.15"/>
@@ -147,6 +147,7 @@ export default {
 <style>
 </style>
 <style scoped>
+.toolbar-actions {display:flex;align-items:center;}
     .title_bar_icon{
         max-height: 50px;
     }

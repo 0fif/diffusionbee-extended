@@ -32,5 +32,24 @@
     },
     "note": "Generation and object recoloring checked at 512 \u00d7 512, four steps. Editor selection checked at 1024 \u00d7 704 with unchanged unselected pixels. Selected edits use blending, not native mask conditioning. Face correction has not been validated.",
     "revision": "f0c62655b9da432932ba24d4bfce8a96800cf0bd"
+  },
+  "mflux-fibo2-edit-turbo-q4": {
+    "date": "2026-11-02",
+    "revision": "b7c949d7e2a9e3e6b86859a3a97a40f7318293c4",
+    "tasks": {
+      "txt2img": "tested",
+      "img2img": "tested",
+      "inpainting": "tested"
+    },
+    "note": "Generation, instruction-based recoloring and selected object edits checked through the app. Selected edits pass a mask to the model and blend into the original. Precise face correction has not been validated."
+  },
+  "mflux-qwen-image-21-turbo-q4": {
+    "date": "2026-11-02",
+    "revision": "84970354375db04f65d3cd23ee7890ca11956e37",
+    "tasks": {
+      "img2img": "tested",
+      "inpainting": "tested"
+    },
+    "note": "Reference recoloring, selected object replacement and eye retouch checked at 1024-scale inputs. Progress, Stop and retry checked through the runner. Eye shape can change more than requested; these samples do not establish identity preservation."
   }
 }

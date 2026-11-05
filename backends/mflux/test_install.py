@@ -4,16 +4,27 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
-from runner import install
+from runner import install, metadata
 
 
 class InstallTests(unittest.TestCase):
+    def test_size_includes_required_fonts_but_not_preview_images(self):
+        files = [SimpleNamespace(rfilename=name, size=size) for name, size in
+                 [('weights.safetensors', 100), ('fonts/font.ttf', 20), ('fonts/font.otf', 30), ('preview.jpg', 999)]]
+        with patch('huggingface_hub.HfApi') as api, patch('runner.emit') as emit:
+            api.return_value.model_info.return_value = SimpleNamespace(
+                siblings=files, downloads=1, likes=2, last_modified=None, sha='test')
+            metadata({'id':'mflux-flux2-klein-4b-4bit'})
+            self.assertEqual(emit.call_args.kwargs['bytes'], 150)
+
     def test_partial_download_never_installed_and_retry_reuses_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             request = {'id':'mflux-flux2-klein-4b-4bit', 'models_dir':directory}
             target = Path(directory)/request['id']
             events = []
             def download(*args, **kwargs):
+                self.assertIn('*.ttf', kwargs['allow_patterns'])
+                self.assertIn('*.otf', kwargs['allow_patterns'])
                 target.mkdir(exist_ok=True)
                 self.assertEqual(Path(kwargs['local_dir']), target)
                 bar = kwargs['tqdm_class'](desc='Downloading bytes', unit='B', total=7)

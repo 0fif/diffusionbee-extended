@@ -2,13 +2,14 @@
     <div>
         <div v-if="is_downloaded" >
              <!-- <p>Downloaded </p> -->
-             <button @click="deletee" class="download-action secondary">Remove</button>
+             <button :disabled="app.stable_diffusion?.is_input_avail === false" @click="deletee" class="download-action secondary">Remove</button>
 
         </div>
 
         <div v-else-if="is_downloading" class="l_button">
              <b-progress :value="app.assets_manager.downloading[asset_details.id].progress" style="height: 8px; width:100%"></b-progress>
-             {{app.assets_manager.downloading[asset_details.id].progress || 0  }}%
+             <span role="status">{{download_status === 'converting' ? 'Preparing model…' : download_status === 'cancelling' ? 'Cancelling…' : (app.assets_manager.downloading[asset_details.id].progress || 0) + '%'}}</span>
+             <button v-if="download_status !== 'converting'" class="download-action secondary" :disabled="download_status === 'cancelling'" @click="app.assets_manager.cancel_download(asset_details.id)">Cancel download</button>
         </div>
 
         <div v-else-if="is_error"  >
@@ -38,13 +39,16 @@ export default {
             this.app.assets_manager.download_asset(this.asset_details)
         }, 
         deletee(){
+            if (this.app.stable_diffusion?.is_input_avail === false) return;
             const name = this.asset_details.title || this.asset_details.id;
             if (!native_confirm('Remove ' + name + ' from this computer? Generated images will be kept.')) return;
-            this.app.assets_manager.delete_asset(this.asset_details.id)
+            if (this.app.assets_manager.delete_asset(this.asset_details.id) === false)
+                this.app.show_toast('Could not remove ' + name + '. The model remains in your library. Check file permissions and try again.');
         }
     },
 
     computed: {
+        download_status(){return this.app.assets_manager.downloading[this.asset_details.id]?.status;},
         is_downloaded(){
             let asset_id = this.asset_details.id
 
@@ -59,7 +63,7 @@ export default {
         } , 
         is_downloading(){
             let asset_id = this.asset_details.id
-            return (this.app.is_mounted && this.app.assets_manager.downloading[asset_id]&& this.app.assets_manager.downloading[asset_id].status == 'downloading')
+            return (this.app.is_mounted && this.app.assets_manager.downloading[asset_id]&& ['downloading','cancelling','converting'].includes(this.app.assets_manager.downloading[asset_id].status))
         } , 
         is_error(){
             let asset_id = this.asset_details.id

@@ -38,7 +38,7 @@ export default {
         this.on_resize()
     },
     
-    beforeDestroy(){
+    beforeUnmount(){
         this.ro.disconnect()
         cancelAnimationFrame(this.resize_frame)
     },

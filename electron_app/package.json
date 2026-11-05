@@ -7,6 +7,7 @@
   "is_dev": false,
   "private": true,
   "scripts": {
+    "test:export": "electron tests/image-export.cjs",
     "test:editor": "electron tests/editor.cjs",
     "electron:serve:release": "node scripts/serve-release.cjs",
     "serve": "vue-cli-service serve",
@@ -20,18 +21,18 @@
     "postuninstall": "electron-builder install-app-deps",
     "test:mflux": "node tests/mflux.cjs",
     "setup:mflux": "node scripts/setup-mflux.cjs",
+    "test:downloads": "node tests/model-download.cjs",
     "test:generation": "node tests/generation-status.cjs",
-    "test:models": "node tests/model-details.cjs && node tests/model-previews.cjs && electron tests/model-store.cjs"
+    "test:models": "node tests/model-details.cjs && node tests/model-previews.cjs && electron tests/model-store.cjs",
+    "test:preload": "electron tests/preload.cjs",
+    "test:history": "electron tests/history.cjs",
+    "test:legacy": "node tests/legacy-tools.cjs"
   },
   "main": "background.js",
   "dependencies": {
-    "@codekraft-studio/vue-record": "^0.0.3",
     "@fortawesome/free-solid-svg-icons": "^5.15.4",
-    "@fortawesome/vue-fontawesome": "^2.0.6",
-    "apexcharts": "^3.33.0",
-    "bootstrap": "^5.1.3",
-    "bootstrap-vue": "^2.21.2",
-    "chart.js": "^2.9.4",
+    "@fortawesome/vue-fontawesome": "3.3.3",
+    "bootstrap": "^5.3.8",
     "core-js": "^3.8.3",
     "electron-context-menu": "^3.5.0",
     "electron-localshortcut": "^3.2.1",
@@ -44,17 +45,11 @@
     "nsfwjs": "^2.4.2",
     "path": "^0.12.7",
     "stream": "^0.0.2",
-    "v-click-outside": "^3.1.2",
-    "verte": "^0.0.12",
-    "vue": "^2.6.14",
-    "vue-apexcharts": "^1.6.2",
-    "vue-chartjs": "^3.5.1",
-    "vue-click-outside": "^1.1.0",
-    "vue-inline-svg": "^2.1.0",
+    "vue": "3.5.44",
     "vue-spinner": "^1.0.4",
-    "vue-toast-notification": "^0.6.3",
-    "vue-unicons": "^3.3.1",
-    "vue-web-cam": "^1.9.0"
+    "vue-toast-notification": "3.1.3",
+    "bootstrap-vue-next": "1.2.2",
+    "@fortawesome/fontawesome-svg-core": "^1.2.36"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -63,13 +58,13 @@
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
     "babel-eslint": "^10.1.0",
-    "electron": "^13.6.9",
+    "electron": "45.2.2",
     "electron-builder": "^23.3.3",
     "electron-devtools-installer": "^3.1.0",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
     "vue-cli-plugin-electron-builder": "^2.1.1",
-    "vue-template-compiler": "^2.6.14"
+    "@vue/compiler-sfc": "3.5.44"
   },
   "eslintConfig": {
     "root": true,
@@ -77,7 +72,7 @@
       "node": true
     },
     "extends": [
-      "plugin:vue/essential",
+      "plugin:vue/vue3-essential",
       "eslint:recommended"
     ],
     "parserOptions": {

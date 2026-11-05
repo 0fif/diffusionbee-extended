@@ -18,7 +18,8 @@
         "img2img",
         "inpainting"
       ],
-      "mask_mode": "composite"
+      "mask_mode": "composite",
+      "edit_mode": "instruction"
     }
   },
   {
@@ -39,8 +40,56 @@
         "img2img",
         "inpainting"
       ],
-      "mask_mode": "composite"
+      "mask_mode": "composite",
+      "edit_mode": "instruction"
     },
     "revision": "f0c62655b9da432932ba24d4bfce8a96800cf0bd"
+  },
+  {
+    "id": "mflux-fibo2-edit-turbo-q4",
+    "title": "FIBO 2 Edit Turbo",
+    "description": "Instruction-based image editing with selection masks, plus text-to-image generation.",
+    "repo": "mflux-community/fibo-2-0-edit-turbo-mflux-q4",
+    "revision": "b7c949d7e2a9e3e6b86859a3a97a40f7318293c4",
+    "source_page_url": "https://huggingface.co/mflux-community/fibo-2-0-edit-turbo-mflux-q4",
+    "license": "See original FIBO 2 Edit Turbo license",
+    "model_meta_data": {
+      "engine": "mflux",
+      "type": "mflux_model",
+      "sd_type": "fibo2_edit_turbo",
+      "float_type": "4-bit",
+      "steps": 4,
+      "tasks": [
+        "txt2img",
+        "img2img",
+        "inpainting"
+      ],
+      "mask_mode": "native",
+      "edit_mode": "instruction"
+    }
+  },
+  {
+    "id": "mflux-qwen-image-21-turbo-q4",
+    "title": "Qwen Image 2.1 Turbo",
+    "description": "Reference-based image editing and selected edits. Uses a 1024-pixel working size.",
+    "repo": "mflux-community/qwen-image-2-1-turbo-mflux-q4",
+    "revision": "84970354375db04f65d3cd23ee7890ca11956e37",
+    "source_page_url": "https://huggingface.co/mflux-community/qwen-image-2-1-turbo-mflux-q4",
+    "license": "qwen-research",
+    "model_meta_data": {
+      "engine": "mflux",
+      "type": "mflux_model",
+      "sd_type": "qwen_image_21_turbo",
+      "float_type": "4-bit",
+      "steps": 8,
+      "tasks": [
+        "img2img",
+        "inpainting"
+      ],
+      "mask_mode": "native",
+      "edit_mode": "instruction",
+      "min_edit_resolution": 1024,
+      "dimension_multiple": 32
+    }
   }
 ]

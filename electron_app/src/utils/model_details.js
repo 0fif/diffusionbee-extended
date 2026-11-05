@@ -12,7 +12,13 @@ export function model_tasks(model) {
 }
 // The catalog and tool selectors share these task and availability rules.
 export function tool_models(assets, backend, task) {
-    return Object.values(assets).filter(model => model_tasks(model).includes(task) && model_available(model, backend));
+    return Object.values(assets).filter(model => {
+        if (task === 'applet_frame_interpolate') {
+            const meta = model.model_meta_data || {};
+            return meta.engine !== 'mflux' && meta.type === 'sd_model' && meta.sd_type !== 'sdxl_base' && model_available(model, backend);
+        }
+        return model_tasks(model).includes(task) && model_available(model, backend);
+    });
 }
 export function task_checks(model, backend) {
     const supported = model_tasks(model);
@@ -27,7 +33,7 @@ export function validation_note(model) {
 }
 export function architecture_name(model) {
     const meta = model.model_meta_data || {};
-    const names = {flux2_klein_4b:'FLUX.2 Klein 4B',flux2_klein_9b:'FLUX.2 Klein 9B',
+    const names = {qwen_image_21_turbo:'Qwen Image 2.1 Turbo',fibo2_edit_turbo:'FIBO 2 Edit Turbo',flux2_klein_4b:'FLUX.2 Klein 4B',flux2_klein_9b:'FLUX.2 Klein 9B',
         flux_schnell:'FLUX.1 Schnell',flux_dev:'FLUX.1 Dev',sdxl_base:'Stable Diffusion XL',
         SD_1x:'Stable Diffusion 1.x',SD_1x_inpaint:'Stable Diffusion 1.x Inpainting'};
     const precision = {float16:'16-bit',float8_1:'8-bit',nnc_float_q5p:'5-bit'};

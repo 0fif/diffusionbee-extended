@@ -1,0 +1,26 @@
+const assert=require('assert'),fs=require('fs'),path=require('path'),os=require('os');
+const {runUpscale}=require('../src/upscale.cjs');
+const {parse}=require('@vue/compiler-sfc');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'db-legacy-'));
+const source=path.join(dir,'input # ?.png');fs.writeFileSync(source,'fixture');
+const binary=path.join(dir,'fake-upscaler');
+fs.writeFileSync(binary,`#!${process.execPath}\nconst fs=require('fs');const a=process.argv.slice(2);if(a[a.indexOf('-n')+1]!=='realesrgan-x4plus')process.exit(3);fs.copyFileSync(a[a.indexOf('-i')+1],a[a.indexOf('-o')+1]);`);fs.chmodSync(binary,0o755);
+(async()=>{
+ const output=await runUpscale(source,binary,path.join(dir,'outputs'));assert.equal(fs.readFileSync(output,'utf8'),'fixture');
+ await assert.rejects(runUpscale(source,binary+'-missing',dir),/ENOENT/);
+ await assert.rejects(runUpscale(source+'-missing',binary,dir),/input image/);
+ fs.writeFileSync(binary,`#!${process.execPath}\nconst fs=require('fs'),a=process.argv;fs.writeFileSync(a[a.indexOf('-o')+1],'partial');process.stderr.write('test failure');process.exit(2);`);
+ await assert.rejects(runUpscale(source,binary,path.join(dir,'failed')),/test failure/);assert.equal(fs.readdirSync(path.join(dir,'failed')).length,0);
+ const s=parse(fs.readFileSync(path.join(__dirname,'../src/pages/PostProcessImage.vue'),'utf8')).descriptor.script.content;
+ const component=new Function('BasicSDApplet','GenerationGallery','Image','window',s.replace(/^import .*$/gm,'').split('export default PostProcessImage;')[0]+'return PostProcessImage;')({}, {}, class{set src(value){assert(value.includes('%23'));this.naturalWidth=256;this.naturalHeight=192;queueMicrotask(()=>this.onload());}}, {ipcRenderer:{invoke:async()=>{if(fail)throw Error('engine unavailable');calls++;return '/fixture/out #.png';}}});
+ let fail=false,calls=0;const notices=[],history=[],groups=[];
+ const ctx={sd_options:{input_img:source,input_img__AUX__source:source,input_img__AUX__width:64,input_img__AUX__height:48},is_running:false,app:{stable_diffusion:{is_input_avail:true},show_toast:m=>notices.push(m),functions:{add_to_history:(id,g)=>history.push(g)}},$refs:{gallery:{add_group:g=>groups.push(g)}}};
+ ctx.sd_options.input_img__AUX__source='stale';await component.methods.upscale.call(ctx);assert.equal(calls,0);
+ ctx.sd_options.input_img__AUX__source=source;await component.methods.upscale.call(ctx);assert.equal(calls,1);assert.equal(history[0].img_width,256);assert.equal(history[0].img_height,192);assert(!ctx.is_running);
+ fail=true;await component.methods.upscale.call(ctx);assert(!ctx.is_running);assert.equal(groups.length,1,'Failure preserves previous successful output');assert(notices.at(-1).includes('engine unavailable'));
+ const details=fs.readFileSync(path.join(__dirname,'../src/utils/model_details.js'),'utf8').replace(/^import .*$/gm,'').replace(/export /g,'');
+ const {tool_models}=new Function('model_available','validation',details+';return {tool_models};')(()=>true,{});
+ const assets={sd:{id:'sd',model_meta_data:{type:'sd_model',sd_type:'SD_1x'}},xl:{id:'xl',model_meta_data:{type:'sd_model',sd_type:'sdxl_base'}},qwen:{id:'qwen',model_meta_data:{type:'mflux_model',engine:'mflux'}},flux:{id:'flux',model_meta_data:{type:'flux_nnc'}}};
+ assert.deepEqual(tool_models(assets,{},'applet_frame_interpolate').map(m=>m.id),['sd']);
+ console.log('PASS: Upscaler arguments/paths, missing binary/input, exit failure cleanup, stale-image guard, actual output dimensions, History, retry readiness; Interpolator model eligibility');
+})().catch(error=>{console.error(error);process.exitCode=1;});

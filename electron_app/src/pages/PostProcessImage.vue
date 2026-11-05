@@ -10,7 +10,7 @@
     >   
 
     <template v-slot:input_buttons>
-            <div v-if="!is_running"  @click="upscale" class="l_button button_colored button_medium" style="float:right">Upscale</div>
+            <button :disabled="is_running || app.stable_diffusion?.is_input_avail === false" @click="upscale" class="l_button button_colored button_medium" style="float:right">{{is_running ? 'Upscaling…' : 'Upscale'}}</button>
     </template>
 
     <template v-slot:output_workpace>
@@ -24,8 +24,6 @@
 
 import BasicSDApplet from "../components/BasicSDApplet.vue"
 import GenerationGallery from "../components/GenerationGallery.vue"
-import Vue from 'vue'
-
 const PostProcessImage = {
     name: 'PostProcessImage',
     props: {app:Object, },
@@ -67,65 +65,40 @@ const PostProcessImage = {
     methods: {
 
         send_to_postprocess(im_path ){
-          Vue.set( this.sd_options , "input_img" ,  im_path );
+          this.sd_options["input_img"] = im_path;
           this.app.functions.switch_page("PostProcessImage")
        },
 
-        upscale(){
-
-            let in_img = this.sd_options.input_img
-
-            if(!in_img || in_img==''){
-                this.app.show_toast('Please select an input image first')
-                return
+        async upscale(){
+            if (this.is_running || this.app.stable_diffusion?.is_input_avail === false) return;
+            const input = this.sd_options.input_img;
+            const width = Number(this.sd_options.input_img__AUX__width);
+            const height = Number(this.sd_options.input_img__AUX__height);
+            if (!input) {this.app.show_toast('Please select an input image first');return;}
+            if (this.sd_options.input_img__AUX__source !== input || !width || !height) {
+                this.app.show_toast('Wait for the image to finish loading.');return;
             }
-                
-
-            let that = this
-
-            if(that.is_running)
-                return
-
-            this.$refs.gallery.clear_all()
-
-            let h = this.sd_options['input_img__AUX__height' ] 
-            let w = this.sd_options['input_img__AUX__width' ]
-
-            if(h > 2048 || w > 2048){
-                this.app.show_toast('Input image is too large')
-                return
+            if (width > 2048 || height > 2048) {
+                this.app.show_toast('The upscaler accepts input images up to 2048 × 2048 pixels.');return;
             }
-
-            this.$refs.gallery.add_group({
-                group_id : 1 ,
-                num_imgs: 1 , 
-                img_height: h , 
-                img_width:  w, 
-                
-                imgs : [{params : {}, done_percentage: -1 } ]
-            })
-            
-            that.is_running = true
-            window.ipcRenderer.invoke('run_realesrgan', in_img.split("?")[0] ).then((result) => {
-                let gallery_group = that.$refs.gallery.get_group(1 )
-                let el_to_update = gallery_group.imgs[ 0  ]
-
-                if(result) 
-                {
-                    el_to_update.image_url = result ;
-                }
-                else{
-                    console.log("got error while upscale")
-                    el_to_update.image_url = "ERROR" ;
-                    el_to_update.description = "Error in upscaling the image" ;
-                }
-
-                this.$refs.gallery.update_group(gallery_group)
-                that.is_running = false
-            })
-
-
+            this.is_running = true;
+            const id = 'upscale:' + Date.now();
+            try {
+                const result = await window.ipcRenderer.invoke('run_realesrgan', input);
+                const image = await new Promise((resolve, reject) => {
+                    const img = new Image();img.onload = () => resolve(img);img.onerror = () => reject(new Error('The upscaled image could not be opened.'));
+                    img.src = 'file://' + encodeURI(result).replace(/#/g,'%23').replace(/\?/g,'%3F');
+                });
+                const params = {applet_name:'upscale',input_img:input,img_width:image.naturalWidth,img_height:image.naturalHeight};
+                const group = {group_id:id,num_imgs:1,img_width:image.naturalWidth,img_height:image.naturalHeight,
+                    imgs:[{image_url:result,description:'Upscaled image',done_percentage:100,params}]};
+                this.$refs.gallery.add_group(group);
+                this.app.functions.add_to_history(id, group);
+            } catch (error) {
+                this.app.show_toast('Could not upscale the image. ' + error.message);
+            } finally { this.is_running = false; }
         }
+
     },
 }
 

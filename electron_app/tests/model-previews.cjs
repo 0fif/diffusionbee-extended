@@ -1,5 +1,5 @@
 const assert=require('assert');
-const {extractImages,createPreviewResolver}=require('../src/model_previews.cjs');
+const {extractImages,createPreviewResolver,cardLocation}=require('../src/model_previews.cjs');
 const body=text=>({body:Buffer.from(text),type:'text/plain'});
 const img={body:Buffer.from('image'),type:'image/png'};
 (async()=>{
@@ -31,9 +31,11 @@ const img={body:Buffer.from('image'),type:'image/png'};
 
 (async()=>{
  const {createDownloadSizeResolver}=require('../src/model_previews.cjs');let requested;
- const size=createDownloadSizeResolver(async url=>{requested=url;return 123;},async url=>{requested=url;return body(JSON.stringify({siblings:[{rfilename:'model.safetensors',size:200},{rfilename:'config.json',size:10},{rfilename:'README.md',size:5},{rfilename:'preview.png',size:999}]}));});
+ const size=createDownloadSizeResolver(async url=>{requested=url;return 123;},async url=>{requested=url;return body(JSON.stringify({siblings:[{rfilename:'model.safetensors',size:200},{rfilename:'config.json',size:10},{rfilename:'README.md',size:5},{rfilename:'fonts/example.ttf',size:20},{rfilename:'fonts/example.otf',size:30},{rfilename:'preview.png',size:999}]}));});
  assert.equal(await size({url:'https://models.diffusionbee.com/model'}),123);
- assert.equal(await size({repo:'a/b',revision:'abc',engine:'mflux'}),215);
+ assert.equal(await size({repo:'a/b',revision:'abc',engine:'mflux'}),265);
  assert(requested.includes('/revision/abc?blobs=true'));
  console.log('PASS: actual download URL size, pinned MFLUX revision and installer file selection');
 })().catch(e=>{console.error(e);process.exit(1);});
+
+assert.deepEqual(cardLocation('https://github.com/mflux-community/mflux/blob/main/src/mflux/models/fibo2/README.md'), {raw:'https://raw.githubusercontent.com/mflux-community/mflux/main/src/mflux/models/fibo2/README.md',base:'https://raw.githubusercontent.com/mflux-community/mflux/main/src/mflux/models/fibo2/',section:''});

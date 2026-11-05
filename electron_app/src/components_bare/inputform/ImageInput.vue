@@ -6,9 +6,9 @@
             <ImageCanvas :on_img_load="on_img_load" ref="inp_img_canvas" :is_inpaint="is_inpaint" :image_source="form_values[config.id]"  :is_disabled="!is_input_avail" :stroke_size_no="stroke_size_no"  :canvas_id="rand_id" :canvas_d_id="rand_id+'d' "  ></ImageCanvas>
         </div>
         <div v-else @drop.prevent="onDragFile" @dragover.prevent @click="open_input_image" class="image_area" :class="{ pointer_cursor  : is_input_avail }" style="height:150px;  border-radius: 5px; padding:5px;">
-                <center>
+                <div style="text-align:center">
                 <p style="margin-top: 60px; opacity: 70%; font-size: 13px;" >Click to add input image</p>
-            </center>
+            </div>
         </div>
 
         <div v-if="form_values[config.id] && is_input_avail" class="l_button" @click="open_input_image" >Change Image</div>
@@ -35,8 +35,6 @@
 import FormInputMixin from "./FormInputMixin.vue"
 import { icon_library } from "../icon_library.js"
 import ImageCanvas from "../ImageCanvas.vue"
-import Vue from 'vue'
-
 export default {
     name: 'ImageInput',
     mixins: [FormInputMixin],
@@ -68,7 +66,7 @@ export default {
             
             let img_path = window.ipcRenderer.sendSync('file_dialog',  'img_file' );
             if(img_path && img_path != 'NULL'){
-                Vue.set(this.form_values , this.config.id , img_path)
+                this.form_values[this.config.id] = img_path
                 this.is_inpaint = false;
             }      
         },
@@ -76,17 +74,18 @@ export default {
            
             if(!e.dataTransfer.files[0] || !e.dataTransfer.files[0].type.startsWith('image/'))
                 return;
-            let img_path = e.dataTransfer.files[0].path;
+            let img_path = window.getPathForFile(e.dataTransfer.files[0]);
             if(img_path && img_path != 'NULL'){
-                Vue.set(this.form_values , this.config.id , img_path)
+                this.form_values[this.config.id] = img_path
                 this.is_inpaint = false;
             }      
         },
 
         on_img_load(){
             if(this.config.get_img_size){
-                Vue.set(this.form_values , this.config.id + "__AUX__height" , this.get_size().height )
-                Vue.set(this.form_values , this.config.id + "__AUX__width" , this.get_size().width )
+                this.form_values[this.config.id + "__AUX__height"] = this.get_size().height
+                this.form_values[this.config.id + "__AUX__width"] = this.get_size().width
+                this.form_values[this.config.id + "__AUX__source"] = this.img_src
             }
         },  
 

@@ -4,8 +4,6 @@
 </template>
 <script>
 
-import Vue from 'vue'
-
 // import { contextBridge, ipcRenderer } from 'electron'
 
 // contextBridge.exposeInMainWorld('ipcRenderer', ipcRenderer)
@@ -31,7 +29,8 @@ function download_file(url, dest, md5_hash , onProgress, onSuccess, onError) {
         window.unbind_ipc_download_on(downloadId)
         onError(m)
     } )
-    window.ipcRenderer.send('download-file', url, dest, downloadId);
+    window.ipcRenderer.send('download-file', url, dest, downloadId, md5_hash);
+    return downloadId;
 }
 
 
@@ -57,14 +56,14 @@ export default {
     watch:{
          'downloaded_assets': {
             handler: function(new_value) {
-                window.ipcRenderer.sendSync('save_data', new_value , 'downloaded_assets.json');
+                window.ipcRenderer.sendSync('save_data', JSON.parse(JSON.stringify(new_value)) , 'downloaded_assets.json');
             },
             deep: true
         } , 
 
          'local_assets': {
             handler: function(new_value) {
-                window.ipcRenderer.sendSync('save_data', new_value , 'locally_loaded_assets.json');
+                window.ipcRenderer.sendSync('save_data', JSON.parse(JSON.stringify(new_value)) , 'locally_loaded_assets.json');
             },
             deep: true
         } , 
@@ -91,7 +90,7 @@ export default {
             if(asset_details.post_process && asset_details.post_process == 'convert_sd_to_tdict' ){
                 asset_details.post_process_params = asset_details.post_process_params || {}
                 let model_name = asset_id + "_" + asset_filename
-                window.ipcRenderer.invoke('add_custom_pytorch_models', asset_details.asset_path_raw,  model_name, asset_details.post_process_params ).then((result) => {
+                window.ipcRenderer.invoke('add_custom_pytorch_models', asset_details.asset_path_raw,  model_name, JSON.parse(JSON.stringify(asset_details.post_process_params || {})) ).then((result) => {
                     that.is_custom_model_loading = false
                     if(result.success){
                             
@@ -103,14 +102,14 @@ export default {
                               ...result.metadata
                             }
 
-                          Vue.set( that.local_assets , asset_id , asset_details)
+                          that.local_assets[asset_id] = asset_details
                           cb("success", asset_details)
                     } else {
                         cb("error" , result.error)
                     }
                 })
             } else {
-                 Vue.set( that.local_assets , asset_id , asset_details)
+                 that.local_assets[asset_id] = asset_details
             }
 
 
@@ -127,12 +126,21 @@ export default {
         delete_asset(asset_id){
             
             let asset_details = this.downloaded_assets[asset_id] || this.local_assets[asset_id] || this.downloading[asset_id] 
-            
-            Vue.delete(this.downloaded_assets, asset_id );
-            Vue.delete(this.downloading, asset_id );
-            Vue.delete(this.local_assets, asset_id );
+            if (!asset_details) return true;
+            if (!window.ipcRenderer.sendSync('delete_file', asset_details.asset_path)) return false;
 
-            window.ipcRenderer.sendSync('delete_file',  asset_details.asset_path );
+            delete this.downloaded_assets[asset_id];
+            delete this.downloading[asset_id];
+            delete this.local_assets[asset_id];
+
+            return true;
+        },
+
+        cancel_download(asset_id){
+            const entry = this.downloading[asset_id];
+            if (!entry || entry.status !== 'downloading') return;
+            entry['status'] = 'cancelling';
+            window.ipcRenderer.send('cancel-download', entry.download_id);
         },
 
         download_asset(asset_details){
@@ -145,7 +153,7 @@ export default {
             if(this.downloaded_assets[asset_id]){
                 return;
             }
-            if(this.downloading[asset_id] && this.downloading[asset_id].status == 'done' ){
+            if(this.downloading[asset_id] && ['done','downloading','cancelling','converting'].includes(this.downloading[asset_id].status) ){
                 return;
             }
 
@@ -165,17 +173,17 @@ export default {
                 if(convert_to_tdict)
                     progress = Math.round(progress*0.9)
                 console.log("downlaod progress "+ progress)
-                Vue.set( that.downloading[asset_id] , 'progress' , progress)
+                that.downloading[asset_id]['progress'] = progress
             }
 
             function on_success(){
 
                 if(convert_to_tdict){
-
+                        that.downloading[asset_id]['status'] = 'converting';
                         asset_details.post_process_params = asset_details.post_process_params || {}
                         asset_details.post_process_params.delete_origional_always = true;
                         let model_name = asset_id + "_" + asset_filename
-                        window.ipcRenderer.invoke('add_custom_pytorch_models', asset_details.asset_path_raw,  model_name, asset_details.post_process_params ).then((result) => {
+                        window.ipcRenderer.invoke('add_custom_pytorch_models', asset_details.asset_path_raw,  model_name, JSON.parse(JSON.stringify(asset_details.post_process_params || {})) ).then((result) => {
                             that.is_custom_model_loading = false
                             if(result.success){
                                 // todo update the metadata 
@@ -187,31 +195,31 @@ export default {
                                   ...result.metadata
                                 }
 
-                                Vue.set( that.downloading[asset_id] , 'status' , 'done')
-                                Vue.set( that.downloaded_assets , asset_id , asset_details)
+                                that.downloading[asset_id]['status'] = 'done'
+                                that.downloaded_assets[asset_id] = asset_details
 
                             } else {
-                                Vue.set( that.downloading[asset_id] , 'status' , 'error')
-                                Vue.set( that.downloading[asset_id] , 'error' , result.error.slice(-30)  )
+                                that.downloading[asset_id]['status'] = 'error'
+                                that.downloading[asset_id]['error'] = result.error.slice(-30)
                             }
                         })
                 } else {
                     asset_details.asset_path = asset_details.asset_path_raw
-                    Vue.set( that.downloading[asset_id] , 'status' , 'done')
-                    Vue.set( that.downloaded_assets , asset_id , asset_details)
+                    that.downloading[asset_id]['status'] = 'done'
+                    that.downloaded_assets[asset_id] = asset_details
                 }
 
             }
 
             function on_error(error ){
-                Vue.set( that.downloading[asset_id] , 'status' , 'error')
-                Vue.set( that.downloading[asset_id] , 'error' , error )
+                that.downloading[asset_id]['status'] = error === 'Download cancelled.' ? 'cancelled' : 'error'
+                that.downloading[asset_id]['error'] = error
             }
 
-            Vue.set( that.downloading  , asset_id , asset_details)
-            Vue.set( that.downloading[asset_id] , 'status' , 'downloading')
+            that.downloading[asset_id] = asset_details
+            that.downloading[asset_id]['status'] = 'downloading'
 
-            download_file( asset_details.url , dest_path , asset_hash  , on_progress , on_success ,  on_error )
+            that.downloading[asset_id]['download_id'] = download_file(asset_details.url, dest_path, asset_hash, on_progress, on_success, on_error);
 
         }
             

@@ -1,24 +1,14 @@
+import {export_image, image_export_format} from '../utils/image_export.js'
 
 let image_manu_functions = {}
 
-image_manu_functions['save_image'] =  function (app, image_item_data){
-	app;
-	image_item_data;
-
-	if(!image_item_data.image_url)
-        return;
-    let im_path = image_item_data.image_url.split("?")[0];
-
-    let seed = (image_item_data.params || {}).seed || ""
-
-    let suggested_fname = (image_item_data.description || "Image").substring(0, 100) + "_" + seed
-    let out_path = window.ipcRenderer.sendSync('save_dialog', suggested_fname);
-    if(!out_path)
-        return
-    let org_path = im_path.replaceAll("file://" , "")
-    window.ipcRenderer.sendSync('save_file', org_path+"||" +out_path);
-
-}
+image_manu_functions['save_image'] = async function (app, image_item_data){
+    if (!image_item_data.image_url) return;
+    const format = image_item_data.params?.export_format || image_export_format(image_item_data.image_url);
+    const name = (image_item_data.description || 'Image').substring(0,100) + '_' + (image_item_data.params?.seed || '') + '.' + format;
+    try { await export_image(image_item_data.image_url, format, name); }
+    catch (error) { app.show_toast(error.message); }
+};
 image_manu_functions['save_image'] .text = "Save Image"
 
 image_manu_functions['send_img_2_img'] =  function (app, image_item_data){
@@ -38,7 +28,7 @@ image_manu_functions['send_outpaint'].text = "Send to AI Canvas"
 
 image_manu_functions['send_inpaint'] =  function (app, image_item_data){
 
-	app.functions.send_to_inpaint( image_item_data.image_url )
+	app.functions.send_to_inpaint(image_item_data.image_url, image_item_data.params?.export_format)
 	
 }
 image_manu_functions['send_inpaint'].text = "Send to Inpainting"

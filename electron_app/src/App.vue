@@ -50,7 +50,7 @@ import PagesRouter from "./components/PagesRouter.vue"
 import MainToolbar from "./components/MainToolbar.vue"
 
 import LoaderModal from './components_bare/LoaderModal.vue'
-import Vue from "vue"
+
 
 native_alert;
 
@@ -116,7 +116,7 @@ export default
             data.custom_models = {}
         }
         if( data ){
-            Vue.set(this.app_state , 'app_data' , data)
+            this.app_state['app_data'] = data
         }
      
     },
@@ -147,7 +147,7 @@ export default
         'app_state.app_data': {
 
             handler: function(new_value) {
-                window.ipcRenderer.sendSync('save_data', new_value , "app_data_2.json");
+                window.ipcRenderer.sendSync('save_data', JSON.parse(JSON.stringify(new_value)) , "app_data_2.json");
             },
             deep: true
         } , 
@@ -173,13 +173,13 @@ export default
         async refresh_modern_models(){
             try {
                 this.modern_backend = await window.ipcRenderer.invoke('mflux-status');
-                this.$set(this.backend_info, 'mflux', !!this.modern_backend.available);
+                this.backend_info['mflux'] = !!this.modern_backend.available;
                 const installed = this.modern_backend.models.filter(model => model.status === 'done');
                 for (const [id, asset] of Object.entries(this.assets_manager.local_assets)) {
                     if (asset.model_meta_data?.engine === 'mflux' && !installed.some(model => model.id === id))
-                        this.$delete(this.assets_manager.local_assets, id);
+                        delete this.assets_manager.local_assets[id];
                 }
-                for (const model of installed) this.$set(this.assets_manager.local_assets, model.id, {...model,is_locally_imported:true});
+                for (const model of installed) this.assets_manager.local_assets[model.id] = {...model,is_locally_imported:true};
             } catch (error) {this.modern_backend = {available:false, models:[],error:error.message};}
         },
 
@@ -188,7 +188,7 @@ export default
         },
 
         show_toast(msg){
-            Vue.$toast.default(msg)
+            this.$toast.open(msg)
         },
 
         sidebar_item_on_click(t){

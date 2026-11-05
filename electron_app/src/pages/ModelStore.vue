@@ -24,7 +24,7 @@
         <div class="model-list">
             <article v-for="model in visible_models" :key="model.id" class="model-row">
                 <div class="model-preview">
-                    <img v-if="previews[model.id]?.status === 'ready'" :src="previews[model.id].image" :alt="previews[model.id].label" loading="lazy" @error="$set(previews, model.id, {status:'error', message:'Could not display this preview.'})">
+                    <img v-if="previews[model.id]?.status === 'ready'" :src="previews[model.id].image" :alt="previews[model.id].label" loading="lazy" @error="previews[model.id] = {status:'error', message:'Could not display this preview.'}">
                     <span v-else-if="!previews[model.id] || previews[model.id].status === 'loading'">Loading preview…</span>
                     <button v-else-if="previews[model.id].status === 'error'" class="preview-source" :title="previews[model.id].message" @click="load_preview(model, true)">Preview failed<br>Retry</button>
                     <span v-else :title="previews[model.id].message">{{previews[model.id].status === 'unknown' ? 'Source not linked' : 'No source preview'}}</span>
@@ -83,7 +83,7 @@
                 <div class="model-actions">
                     <span v-if="model.status === 'done' || model.is_locally_imported" class="installed-label">Installed</span>
                     <template v-if="is_modern(model)">
-                        <template v-if="model.status === 'done'"><button class="model-button quiet" @click="remove_model(model)">Remove</button></template>
+                        <template v-if="model.status === 'done'"><button class="model-button quiet" :disabled="app.stable_diffusion?.is_input_avail === false" @click="remove_model(model)">Remove</button></template>
                         <template v-else-if="installing === model.id"><span role="status">{{install_stage}}</span><progress v-if="install_progress.total_files" :value="install_progress.completed_files" :max="install_progress.total_files" aria-label="Files downloaded"/><span v-if="install_progress.total_files">{{install_progress.completed_files}} / {{install_progress.total_files}} files ready</span><span v-if="install_progress.transferred_bytes">{{format_size(install_progress.transferred_bytes)}} received</span><button class="model-button" :disabled="cancelling_install" @click="cancel_install">{{cancelling_install ? 'Cancelling…' : 'Cancel download'}}</button></template>
                         <button v-else class="model-button primary" :disabled="!!installing || !app.modern_backend.available" @click="install_model(model)">{{model.partial ? 'Resume download' : 'Download'}}</button>
                     </template>
@@ -94,13 +94,13 @@
                 </div>
             </article>
         </div>
-        <div class="model-empty" v-if="!visible_models.length"><h2>No models match</h2><p>Try another search or change the filters.</p><button class="model-button" @click="search = ''; engine_filter = 'all'; task_filter = 'all'">Clear filters</button></div>
+        <div class="model-empty" v-if="tab === 'installed' && !installed_models.length"><h2>No models installed</h2><p>Download an image model from the catalog to get started.</p><button class="model-button" @click="tab = 'discover'; search = ''; engine_filter = 'all'; task_filter = 'all'">Browse catalog</button></div>
+        <div class="model-empty" v-else-if="!visible_models.length"><h2>No models match</h2><p>Try another search or change the filters.</p><button class="model-button" @click="search = ''; engine_filter = 'all'; task_filter = 'all'">Clear filters</button></div>
 
     </div>
 </template>
 <script>
 
-import Vue from 'vue'
 import {model_tasks, task_checks, validation_note, architecture_name} from '../utils/model_details.js'
 import {native_confirm} from '../native_functions_vue_bridge.js'
 import {model_available} from '../utils/model_compatibility.js'
@@ -115,10 +115,10 @@ const ModelStore ={
     mounted() {
         this.load_models_list_local_storage()
         this.refresh()
-        this.install_progress_listener = (_, event) => {if(event.id !== this.installing) return;if(event.message) this.install_stage = event.message;if(event.event === 'download') this.install_progress = event;};
-        window.ipcRenderer.on('mflux-install-progress', this.install_progress_listener);
+        this.install_progress_listener = (event) => {if(event.id !== this.installing) return;if(event.message) this.install_stage = event.message;if(event.event === 'download') this.install_progress = event;};
+        this.unsubscribe_install_progress = window.ipcRenderer.on('mflux-install-progress', this.install_progress_listener);
     },
-    beforeDestroy(){window.ipcRenderer.removeListener('mflux-install-progress', this.install_progress_listener);},
+    beforeUnmount(){if(this.unsubscribe_install_progress) this.unsubscribe_install_progress();},
     data() {
         return {
             is_local_model_importing : false,
@@ -166,25 +166,27 @@ const ModelStore ={
         support_text(model){
             if (!model_available(model,this.app.backend_info)) return this.is_modern(model) ? 'Requires an available MFLUX engine.' :
                 `Requires a supported DiffusionBee backend (catalog minimum build ${model.min_version || 29}; active build ${this.app.backend_info?.build || 'unknown'}).`;
-            if (this.is_modern(model)) return 'Instruction-based editing; selections are blended into the original.';
+            if (this.is_modern(model)) return model.model_meta_data?.mask_mode === 'native'
+                ? 'Uses your selection and instructions to edit the image.'
+                : 'Instruction-based editing; selections are blended into the original.';
             if (model.model_meta_data?.type === 'controlnet_model') return 'Editing helper · Used with a generation model';
             return this.tasks(model).includes('inpainting') ? 'Legacy generation / masked editing · Quality varies by model' : 'Text to image';
         },
         open_preview_source(model){window.ipcRenderer.send('open_url',this.previews[model.id].source);},
         async load_preview(model, force = false){
             if (!force && this.previews[model.id]) return;
-            this.$set(this.previews,model.id,{status:'loading'});
-            try {this.$set(this.previews,model.id,await window.ipcRenderer.invoke('model-preview',{
+            this.previews[model.id] = {status:'loading'};
+            try {this.previews[model.id] = await window.ipcRenderer.invoke('model-preview',{
                 id:model.id,repo:model.repo,source_page_url:model.source_page_url,img_url:model.img_url
-            },force));}
-            catch(error){this.$set(this.previews,model.id,{status:'error',message:error.message});}
+            },force);}
+            catch(error){this.previews[model.id] = {status:'error',message:error.message};}
         },
         async load_size(model, force = false){
             if(this.size_loading[model.id] || (!force && (this.download_sizes[model.id] || this.size_errors[model.id]))) return;
-            this.$set(this.size_loading,model.id,true);this.$delete(this.size_errors,model.id);
-            try{this.$set(this.download_sizes,model.id,await window.ipcRenderer.invoke('model-download-size',{url:model.url,repo:model.repo,revision:model.revision,engine:model.model_meta_data?.engine},force));}
-            catch(error){this.$set(this.size_errors,model.id,error.message);}
-            finally{this.$set(this.size_loading,model.id,false);}
+            this.size_loading[model.id] = true;delete this.size_errors[model.id];
+            try{this.download_sizes[model.id] = await window.ipcRenderer.invoke('model-download-size',{url:model.url,repo:model.repo,revision:model.revision,engine:model.model_meta_data?.engine},force);}
+            catch(error){this.size_errors[model.id] = error.message;}
+            finally{this.size_loading[model.id] = false;}
         },
         async load_previews(){
             const queue = this.visible_models.slice();
@@ -197,14 +199,14 @@ const ModelStore ={
             this.refreshing=true;
             try {
                 await Promise.all([this.load_models_list_from_web(),this.app.refresh_modern_models()]);
-                for (const id of Object.keys(this.previews)) if (this.previews[id].status !== 'loading') this.$delete(this.previews,id);
+                for (const id of Object.keys(this.previews)) if (this.previews[id].status !== 'loading') delete this.previews[id];
                 this.metadata={};this.metadata_errors={};
                 this.load_previews();
                 this.installing = this.app.modern_backend.installing;
                 this.install_progress = this.app.modern_backend.install_progress || {};
                 for (const model of this.installed_models) {
                     if (!model.bytes && model.asset_path) {
-                        try {this.$set(this.sizes,model.id,await window.ipcRenderer.invoke('model-file-size',model.asset_path));} catch (_) { /* unknown size stays explicit */ }
+                        try {this.sizes[model.id] = await window.ipcRenderer.invoke('model-file-size',model.asset_path);} catch (_) { /* unknown size stays explicit */ }
                     }
                 }
             } finally {this.refreshing=false;}
@@ -216,6 +218,7 @@ const ModelStore ={
             finally {this.installing=null;this.cancelling_install=false;await this.app.refresh_modern_models();}
         },
         async remove_model(model){
+            if (this.app.stable_diffusion?.is_input_avail === false) return;
             if (!native_confirm('Remove ' + model.title + ' from this computer? Generated images will be kept.')) return;
             try {await window.ipcRenderer.invoke('mflux-remove',model.id);await this.app.refresh_modern_models();}
             catch(error){this.install_error=error.message;}
@@ -223,10 +226,10 @@ const ModelStore ={
         cancel_install(){this.cancelling_install=true;this.install_stage='Cancelling…';window.ipcRenderer.invoke('mflux-cancel-install').catch(error=>{this.install_error=error.message;this.cancelling_install=false;});},
         async load_metadata(model,event,force = false){
             if (!event.target.open || this.metadata_loading[model.id] || (!force && this.metadata[model.id])) return;
-            this.$set(this.metadata,model.id,{});this.$set(this.metadata_loading,model.id,true);this.$delete(this.metadata_errors,model.id);
-            try {this.$set(this.metadata,model.id,await window.ipcRenderer.invoke('model-metadata',{id:model.id,repo:model.repo,source_page_url:model.source_page_url,url:model.url},force));}
-            catch(error){this.$delete(this.metadata,model.id);this.$set(this.metadata_errors,model.id,'Could not retrieve model information. ' + error.message);}
-            finally {this.$set(this.metadata_loading,model.id,false);}
+            this.metadata[model.id] = {};this.metadata_loading[model.id] = true;delete this.metadata_errors[model.id];
+            try {this.metadata[model.id] = await window.ipcRenderer.invoke('model-metadata',{id:model.id,repo:model.repo,source_page_url:model.source_page_url,url:model.url},force);}
+            catch(error){delete this.metadata[model.id];this.metadata_errors[model.id] = 'Could not retrieve model information. ' + error.message;}
+            finally {this.metadata_loading[model.id] = false;}
         },
         load_models_list_from_web(){
             let that = this;
@@ -250,7 +253,7 @@ const ModelStore ={
             if(models){
                 try { models = JSON.parse(models) } catch (_) { models = [] }
             }
-            Vue.set(this , 'models_list' , Array.isArray(models) ? models : [])
+            this['models_list'] = Array.isArray(models) ? models : []
         } ,
 
         save_models_list_local_storage(){

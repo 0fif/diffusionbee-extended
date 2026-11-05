@@ -4,6 +4,8 @@ const yaml = require('js-yaml');
 // Source identities for stock conversions that predate catalog metadata.
 // These are model cards/repositories, never hand-picked image files.
 const sources = {
+    'mflux-qwen-image-21-turbo-q4': ['https://github.com/mflux-community/mflux/blob/main/src/mflux/models/qwen21/reference/README.md'],
+    'mflux-fibo2-edit-turbo-q4': ['https://github.com/mflux-community/mflux/blob/main/src/mflux/models/fibo2/README.md'],
     'Deliberate_v2': ['https://huggingface.co/XpucT/Deliberate'],
     'Stable Diffusion XL Base 1.0': ['https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0'],
     'JuggernautXL_v7_f8': ['https://civitai.com/models/133005/juggernaut-xl'],
@@ -54,6 +56,10 @@ function cardLocation(source) {
         return {raw:base+'/raw/main/README.md', base:base+'/resolve/main/'};
     }
     if (url.hostname === 'github.com' && parts.length >= 2) {
+        if (parts[2] === 'blob' && parts.length >= 5) {
+            const raw = `https://raw.githubusercontent.com/${parts.slice(0,2).join('/')}/${parts.slice(3).join('/')}`;
+            return {raw, base:new URL('.', raw).href, section:url.hash.slice(1)};
+        }
         const base = `https://raw.githubusercontent.com/${parts.slice(0,2).join('/')}/main/`;
         return {raw:base+'README.md', base, section:url.hash.slice(1)};
     }
@@ -100,7 +106,7 @@ function createPreviewResolver(fetch = request) {
                 const location = cardLocation(source);if(!location)continue;
                 const markdown = (await fetch(location.raw)).body.toString();readCard = true;
                 const urls = extractImages(markdown,location.base,location.section);
-                for(const url of urls.slice(0,4)) {try{return await image(url,source,source.includes('github.com') ? 'Publisher family examples' : 'Model card example');}catch(e){lastError=e;}}
+                for(const url of urls.slice(0,4)) {try{return await image(url,source,source.includes('github.com/mflux-community/') ? 'MFLUX model example' : source.includes('github.com') ? 'Publisher family examples' : 'Model card example');}catch(e){lastError=e;}}
                 const frontmatter = markdown.match(/^---\s*\n([\s\S]*?)\n---/);
                 const baseModel = frontmatter && (yaml.load(frontmatter[1]) || {}).base_model;
                 for(const repo of (Array.isArray(baseModel) ? baseModel : [baseModel])) if(typeof repo === 'string' && /^[\w.-]+\/[\w.-]+$/.test(repo)) queue.push(`https://huggingface.co/${repo}`);
@@ -197,7 +203,7 @@ function createDownloadSizeResolver(head = downloadSize, fetch = request) {
                 if(model.repo && model.engine==='mflux'){
                     const revision=model.revision ? `/revision/${encodeURIComponent(model.revision)}` : '';
                     const data=JSON.parse((await fetch(`https://huggingface.co/api/models/${model.repo}${revision}?blobs=true`)).body.toString());
-                    const files=(data.siblings || []).filter(f=>/\.(json|safetensors|jinja|txt|model)$/.test(f.rfilename)||f.rfilename==='README.md');
+                    const files=(data.siblings || []).filter(f=>/\.(json|safetensors|jinja|txt|model|ttf|otf)$/.test(f.rfilename)||f.rfilename==='README.md');
                     if(!files.length || files.some(f=>!Number.isFinite(f.size)))throw Error('Source did not return download file sizes');
                     return files.reduce((sum,f)=>sum+f.size,0);
                 }

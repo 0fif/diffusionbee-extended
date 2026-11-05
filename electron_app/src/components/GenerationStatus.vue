@@ -4,7 +4,7 @@
         <div>{{duration(backend.elapsed_seconds)}} {{backend.is_input_avail ? 'total' : 'elapsed'}}<span v-if="!backend.is_input_avail && backend.step_seconds && !backend.is_stopping"> · Last step {{backend.step_seconds.toFixed(1)}} s</span></div>
         <details v-if="backend.diagnostics && backend.is_input_avail">
             <summary>Run details</summary>
-            <dl><template v-for="(seconds, phase) in backend.diagnostics.timings"><dt :key="phase+'label'">{{labels[phase] || phase}}</dt><dd :key="phase">{{seconds.toFixed(1)}} s</dd></template>
+            <dl><template v-for="(seconds, phase) in backend.diagnostics.timings" :key="phase"><dt>{{labels[phase] || phase}}</dt><dd>{{seconds.toFixed(1)}} s</dd></template>
                 <dt>Peak engine memory</dt><dd>{{(backend.diagnostics.peak_memory_bytes / 1073741824).toFixed(2)}} GiB</dd>
                 <template v-if="backend.diagnostics.process_peak_bytes"><dt>Peak process memory</dt><dd>{{(backend.diagnostics.process_peak_bytes / 1073741824).toFixed(2)}} GiB</dd></template>
                 <template v-if="backend.diagnostics.system_memory_delta"><dt>System swap-outs</dt><dd>{{(backend.diagnostics.system_memory_delta.Swapouts / 1048576).toFixed(1)}} MiB</dd><dt>System compression</dt><dd>{{(backend.diagnostics.system_memory_delta.Compressions / 1048576).toFixed(1)}} MiB</dd></template>

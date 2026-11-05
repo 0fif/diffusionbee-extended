@@ -3,8 +3,6 @@
 </template>
 <script>
 
-import Vue from 'vue'
-
 export default {
     name: 'SDManager',
     props: {
@@ -175,6 +173,7 @@ export default {
                     el_to_update.params = JSON.parse(JSON.stringify(job)) ;
 
                     gallery.update_group( gallery_group  )
+                    that.app.functions.add_to_history(that.current_group_id, gallery_group);
                     that.finish_current_job()
 
                 },
@@ -275,7 +274,7 @@ export default {
                 let gallery = this.group_gallery_mapping[group.group_id];
                 gallery.delete_group(group.group_id)
             }
-            Vue.set(this.queue , 'groups_todo' , [] ) 
+            this.queue['groups_todo'] = []
 
             this.stable_diffusion.interupt();
 

@@ -1,8 +1,54 @@
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+from PIL import Image
 from runner import validate_request, model_entry
 from diagnostics import parse_vm_stat, memory_delta
 
 class RequestTests(unittest.TestCase):
+    def test_native_edit_requires_aligned_mask_and_passes_it_to_model(self):
+        model = {'model_meta_data': {'tasks':['txt2img','img2img','inpainting'], 'mask_mode':'native', 'edit_mode':'instruction'}}
+        with tempfile.TemporaryDirectory() as directory, patch('runner.model_entry', return_value=model):
+            source, mask = Path(directory)/'source.png', Path(directory)/'mask.png'
+            Image.new('RGB', (768,512)).save(source)
+            request = {'selected_sd_model':'test', 'prompt':'Make the cup blue',
+                       'applet_name':'inpainting', 'input_img':str(source), 'mask_image_path':str(mask)}
+            with self.assertRaisesRegex(ValueError, 'mask is missing'): validate_request(request)
+            Image.new('L', (512,512)).save(mask)
+            with self.assertRaisesRegex(ValueError, 'dimensions'): validate_request(request)
+            Image.new('L', (768,512)).save(mask)
+            _, options = validate_request(request)
+            self.assertEqual(options['mask_path'], str(mask))
+            self.assertEqual(options['image_paths'], [str(source)])
+            _, options = validate_request(dict(request, edit_operation='retouch', mask_image_path='/missing'))
+            self.assertNotIn('mask_path', options)
+            self.assertEqual(options['image_paths'], [str(source)])
+            with self.assertRaisesRegex(ValueError, 'Unknown edit mode'):
+                validate_request(dict(request, edit_operation='invalid'))
+            _, options = validate_request(dict(request, applet_name='img2img'))
+            self.assertNotIn('mask_path', options)
+            _, options = validate_request(dict(request, applet_name='txt2img'))
+            self.assertNotIn('image_paths', options)
+
+    def test_qwen_edit_dimensions_and_mask_routing(self):
+        model = {'model_meta_data': {'sd_type':'qwen_image_21_turbo', 'tasks':['img2img','inpainting'],
+                 'mask_mode':'native', 'edit_mode':'instruction', 'min_edit_resolution':1024,
+                 'dimension_multiple':32, 'steps':8}}
+        with tempfile.TemporaryDirectory() as directory, patch('runner.model_entry', return_value=model):
+            source, mask = Path(directory)/'source.png', Path(directory)/'mask.png'
+            Image.new('RGB',(1024,576)).save(source);Image.new('L',(1024,576)).save(mask)
+            request = {'selected_sd_model':'test','prompt':'Make the cup blue','applet_name':'inpainting',
+                       'input_img':str(source),'mask_image_path':str(mask),'img_width':1024,'img_height':576}
+            _, options = validate_request(request)
+            self.assertEqual(options['mask_image'],str(mask));self.assertNotIn('mask_path',options)
+            self.assertEqual(options['num_inference_steps'],8)
+            _, options = validate_request(dict(request,edit_operation='retouch'))
+            self.assertNotIn('mask_image',options)
+            for dims in [(512,320),(1024,560)]:
+                with self.assertRaisesRegex(ValueError,'working size'):
+                    validate_request(dict(request,img_width=dims[0],img_height=dims[1]))
+
     def test_system_memory_observations(self):
         before = parse_vm_stat('Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPageouts: 2.\nSwapouts: 3.\nCompressions: 5.')
         self.assertEqual(before['Swapouts'], 3*16384)

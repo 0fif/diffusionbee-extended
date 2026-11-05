@@ -9,9 +9,6 @@
 
 
 import SDImageGenerationApplet from "../components/SDImageGenerationApplet.vue"
-import Vue from 'vue'
-
-
 const Img2Img = {
     name: 'Img2Img',
     props: {
@@ -30,14 +27,15 @@ const Img2Img = {
     },
     methods: {
        send_to_img2img(im_path, params ){
-          Vue.set( this.$refs.sd_applet.sd_options , "input_img" ,  im_path );
+          this.$refs.sd_applet.sd_options["input_img"] = im_path;
           if(params){
              params = JSON.parse(JSON.stringify(params))
              params.input_img = undefined
              params.seed = undefined
-             if(params.raw_form_options)
+             if(params.raw_form_options){
                 params.raw_form_options.input_img = undefined
                 params.raw_form_options.seed = undefined
+             }
              this.$refs.sd_applet.load_options(params)
           }
           this.app.functions.switch_page("Img2Img")
@@ -48,9 +46,14 @@ const Img2Img = {
             if((!this.$refs.sd_applet.sd_options.input_img) || this.$refs.sd_applet.sd_options.input_img=="" ){
                 this.app.show_toast("You need to specify an input image")
                 return false
-            } else {
-                return true
             }
+            const options = this.$refs.sd_applet.sd_options;
+            if (options.input_img__AUX__source !== options.input_img ||
+                !(options.input_img__AUX__width > 0 && options.input_img__AUX__height > 0)) {
+                this.app.show_toast('Wait for the image to finish loading before generating.');
+                return false;
+            }
+            return true;
        }, 
 
        postprocess_form_options_fn(options){
@@ -63,9 +66,12 @@ const Img2Img = {
             }
 
             if (options.engine === 'mflux' && !explicitDimensions) {
-                const scale = Math.min(1, 1024 / Math.max(options.img_width, options.img_height));
-                options.img_width = Math.max(16, Math.round(options.img_width * scale / 16) * 16);
-                options.img_height = Math.max(16, Math.round(options.img_height * scale / 16) * 16);
+                const metadata = this.app.assets_manager.all_avail_assets[options.selected_sd_model]?.model_meta_data || {};
+                const longest = Math.max(options.img_width, options.img_height);
+                const scale = Math.max(metadata.min_edit_resolution || 0, Math.min(longest, 1024)) / longest;
+                const multiple = metadata.dimension_multiple || 16;
+                options.img_width = Math.max(multiple, Math.round(options.img_width * scale / multiple) * multiple);
+                options.img_height = Math.max(multiple, Math.round(options.img_height * scale / multiple) * multiple);
             }
             return options
        }

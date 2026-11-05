@@ -14,9 +14,6 @@
 
 import FormInputMixin from "./FormInputMixin.vue"
 import { icon_library } from "../icon_library.js"
-import Vue from 'vue'
-
-
 export default {
     name: 'Textbox',
     mixins: [FormInputMixin],
@@ -27,7 +24,7 @@ export default {
     components: {},
     mounted() {
         if(this.form_values[this.config.id] === undefined && this.config.default_value != undefined){
-            Vue.set( this.form_values  , this.config.id  , this.config.default_value  )
+            this.form_values[this.config.id] = this.config.default_value
         } 
     },
     data() {

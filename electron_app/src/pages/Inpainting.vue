@@ -6,8 +6,11 @@
             <section class="photo-editor">
                 <div class="editor-toolbar" aria-label="Image controls">
                     <button class="editor-button" :disabled="!is_sd_active" @click="open_input_image">Open image</button>
-                    <button class="editor-button" :disabled="!inp_img || !is_sd_active" @click="save_img">Save image</button>
+                    <label v-if="inp_img" class="editor-model">Save as <select v-model="export_format" :disabled="!is_sd_active || is_exporting"><option value="jpg">JPEG (high quality)</option><option value="png">PNG (lossless)</option></select></label>
+                    <button class="editor-button" :disabled="!inp_img || !is_sd_active || is_exporting" @click="save_img">{{is_exporting ? 'Saving…' : 'Save image'}}</button>
                     <label class="editor-model">Model <select v-model="sd_options.selected_sd_model" :disabled="!is_sd_active"><option v-if="!editor_models.some(model => model.id === sd_options.selected_sd_model)" :value="sd_options.selected_sd_model" disabled>Choose an available model</option><option v-for="model in editor_models" :key="model.id" :value="model.id">{{model.title || model.id}}</option></select></label>
+                    <label v-if="model_resolution === 1024" class="editor-model" title="Auto sizes the working crop from your selection and surrounding context. Smaller sizes are faster but can lose detail. Your photo keeps its original size.">Edit resolution <select v-model.number="edit_resolution" :disabled="!is_sd_active"><option value="auto">Auto (selection size)</option><option v-if="minimum_edit_resolution <= 512" :value="512">512 px (faster)</option><option v-if="minimum_edit_resolution <= 768" :value="768">768 px</option><option :value="1024">1024 px</option></select></label>
+                    <label v-if="supports_retouch" class="editor-model">Edit mode <select v-model="edit_mode" :disabled="!is_sd_active"><option value="retouch">Retouch</option><option value="replace">Replace</option></select></label>
                     <button class="editor-button" :aria-pressed="show_settings" @click="show_settings = !show_settings">Settings</button>
                     <span class="toolbar-spacer"></span>
                     <button class="editor-button" :disabled="!undo_history.length || !is_sd_active" @click="do_undo">Undo edit</button>
@@ -43,9 +46,9 @@
                     <label for="fill-prompt">{{mask_state.drawn ? (instruction_edit ? 'Describe your edit' : 'Describe the replacement') : 'Select an area to edit'}}</label>
                     <div class="fill-input">
                         <textarea id="fill-prompt" v-model="sd_options.prompt" rows="2" :placeholder="instruction_edit ? 'Describe the change, for example: replace the blue shirt with a red shirt…' : 'Describe the finished area, for example: a red cotton shirt, natural lighting…'" :disabled="!is_sd_active" @keydown.meta.enter.prevent="generate(false)" @keydown.ctrl.enter.prevent="generate(false)"></textarea>
-                        <button class="editor-button primary" :disabled="!is_sd_active || !mask_state.drawn || !sd_options.prompt.trim() || !editor_models.some(model => model.id === sd_options.selected_sd_model)" @click="generate(false)">Generate fill</button>
+                        <button class="editor-button primary" :disabled="!is_sd_active || !mask_state.drawn || !sd_options.prompt.trim() || !editor_models.some(model => model.id === sd_options.selected_sd_model)" @click="generate(false)">{{retouch ? 'Generate edit' : 'Generate fill'}}</button>
                     </div>
-                    <span class="editor-hint">{{instruction_edit ? 'This model edits from instructions. The app blends the selected area back into your photo.' : 'Describe what should appear in the selection. This model generates a replacement from your description.'}} Everything outside your mask stays unchanged.</span>
+                    <span class="editor-hint">{{retouch ? 'Retouch gives the model the original selected detail as a reference.' : instruction_edit ? 'This model edits from instructions. The app blends the selected area back into your photo.' : 'Describe what should appear in the selection. This model generates a replacement from your description.'}} Everything outside your mask stays unchanged.</span>
                 </div>
                 <div v-if="is_post_generate_box_showing" class="review-bar" aria-label="Review generated edit">
                     <strong>Review your edit</strong>
@@ -57,7 +60,7 @@
                 </div>
                 <div class="editor-status" aria-live="polite">
                     <GenerationStatus v-if="is_mounted" :backend="stable_diffusion"/>
-                    <button v-if="is_mounted && !stable_diffusion.is_input_avail && stable_diffusion.generated_by === 'Inpainting'" class="editor-button" :disabled="is_stopping" @click="stop_all">{{is_stopping ? 'Stopping…' : 'Stop generation'}}</button>
+                    <button v-if="is_mounted && !stable_diffusion.is_input_avail && stable_diffusion.generated_by === 'Inpainting'" class="editor-button" :disabled="is_stopping || !!stable_diffusion.pending_result" @click="stop_all">{{is_stopping ? 'Stopping…' : 'Stop generation'}}</button>
                     <span v-if="!is_mounted || stable_diffusion.is_input_avail" class="editor-hint">Scroll to zoom · Space + drag to pan · B brush · E erase</span>
                     <span class="toolbar-spacer"></span>
                     <template v-if="inp_img">
@@ -74,6 +77,7 @@
 </template>
 
 <script>
+import {export_image, image_export_format} from '../utils/image_export.js'
 import {tool_models} from '../utils/model_details.js'
 import GenerationStatus from "../components/GenerationStatus.vue"
 
@@ -111,6 +115,10 @@ const Inpainting = {
             is_post_generate_box_showing : false,
             stroke_size_no: "30",
             show_settings: false, tool: 'brush', show_mask: true, show_before: false,
+            completed_edit: null,
+            edit_resolution: 'auto',
+            edit_mode: 'retouch',
+            export_format: 'png', is_exporting: false,
             view: {zoom: 1, percent: 100}, mask_state: {undo: 0, redo: 0, drawn: false},
             tools: [{id: 'rectangle', label: 'Select', hint: 'Rectangular selection (M)'}, {id: 'brush', label: 'Brush', hint: 'Paint mask (B)'}, {id: 'eraser', label: 'Erase', hint: 'Erase mask (E)'}, {id: 'pan', label: 'Pan', hint: 'Move view (H or Space)'}],
 
@@ -118,9 +126,25 @@ const Inpainting = {
         };
     },
     computed : {
+        supports_retouch(){
+            const meta = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
+            return meta.engine === 'mflux' && meta.edit_mode === 'instruction' && meta.mask_mode === 'native' && (meta.tasks || []).includes('img2img');
+        },
+        retouch(){ return this.supports_retouch && this.edit_mode === 'retouch'; },
+        model_resolution(){
+            const meta = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
+            return meta.engine === 'mflux' || meta.sd_type === 'sdxl_base' ? 1024 : 512;
+        },
+        minimum_edit_resolution(){
+            return this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model]?.model_meta_data?.min_edit_resolution || 512;
+        },
+        working_resolution(){
+            if (this.model_resolution !== 1024) return this.model_resolution;
+            return this.edit_resolution === 'auto' ? 'auto' : Math.max(this.minimum_edit_resolution, [512,768,1024].includes(this.edit_resolution) ? this.edit_resolution : 1024);
+        },
         instruction_edit(){
             const meta = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
-            return ['flux2_klein_4b','flux2_klein_9b'].includes(meta.sd_type);
+            return meta.edit_mode === 'instruction';
         },
         editor_models(){
             return tool_models(this.app.assets_manager.all_avail_assets, this.app.backend_info, 'inpainting');
@@ -164,8 +188,25 @@ const Inpainting = {
             return form_or
         }
     },
+    watch: {
+        minimum_edit_resolution(minimum){
+            if (this.edit_resolution !== 'auto' && this.edit_resolution < minimum) this.edit_resolution = 'auto';
+        }
+    },
     methods: {
+        record_completed_edit(){
+            const edit = this.completed_edit;
+            if (!edit) return;
+            edit.params.export_format = this.export_format;
+            return this.app.functions.add_to_history('inpaint:' + edit.image_url, {
+                num_imgs: 1, img_width: edit.params.img_width, img_height: edit.params.img_height,
+                imgs: [edit]
+            });
+        },
         keep_generation(){
+            if (!this.is_sd_active || !this.is_post_generate_box_showing || !this.completed_edit) return;
+            this.record_completed_edit();
+            this.completed_edit = null;
             this.show_before = false;
             this.is_post_generate_box_showing = false;
         },
@@ -190,6 +231,7 @@ const Inpainting = {
             this.show_before = false;
             this.is_stopping = false;
             this.backend_error = "";
+            this.completed_edit = null;
             this.done_percentage = -1;
 
             this.is_post_generate_box_showing = false
@@ -204,7 +246,7 @@ const Inpainting = {
             if(this.retry_params == undefined)
                 this.retry_params = {}
 
-            if(is_retry){
+            if(is_retry && this.retry_params.content && this.retry_params.minimum_resolution === this.minimum_edit_resolution && this.retry_params.resolution === this.working_resolution && this.retry_params.retouch === this.retouch){
                 img_url = this.retry_params.img_url
                 img_mask_url = this.retry_params.img_mask_url
                 generation_input = this.retry_params.generation_input
@@ -215,13 +257,16 @@ const Inpainting = {
 
 
                 const editor = this.$refs.inp_img_canvas;
-                const metadata = (this.app.assets_manager.all_avail_assets[this.sd_options.selected_sd_model] || {}).model_meta_data || {};
-                const prepared = prepare_inpaint_crop(editor.canvasD, editor.canvas, (metadata.sd_type === 'sdxl_base' || metadata.engine === 'mflux') ? 1024 : 512);
+                const prepared = prepare_inpaint_crop(editor.canvasD, editor.canvas, this.working_resolution, this.model_resolution, this.retouch, this.minimum_edit_resolution);
                 generation_input = window.ipcRenderer.sendSync('save_b64_image', prepared.image, true);
                 img_mask_url = window.ipcRenderer.sendSync('save_b64_image', prepared.mask, true);
                 this.retry_params.crop = prepared.crop;
+                this.retry_params.content = prepared.content;
                 this.retry_params.width = prepared.width;
                 this.retry_params.height = prepared.height;
+                this.retry_params.resolution = this.working_resolution;
+                this.retry_params.minimum_resolution = this.minimum_edit_resolution;
+                this.retry_params.retouch = this.retouch;
                 this.retry_params.generation_input = generation_input;
                 this.retry_mask_cached = editor.get_mask_for_cache();
             }
@@ -253,9 +298,13 @@ const Inpainting = {
                     that.is_restoring = true;
                     try {
                         const composite = await composite_inpaint(img_url, that.retry_mask_cached, img_path.generated_img_path,
-                            that.retry_params.crop);
-                        const saved = window.ipcRenderer.sendSync('save_b64_image', composite, true);
+                            that.retry_params.crop, !that.retry_params.retouch, that.retry_params.content);
+                        const saved = window.ipcRenderer.sendSync('save_b64_image', composite);
                         if (!saved || saved === 'NULL') throw new Error('Could not save the edited image.');
+                        const size = that.$refs.inp_img_canvas.get_size();
+                        that.completed_edit = {image_url: saved, done_percentage: 100,
+                            params: {...sd_options_object, img_width:size.width, img_height:size.height}};
+                        that.record_completed_edit();
                         that.undo_history.push(img_url)
                     that.redo_history = []
                     that.$refs.inp_img_canvas.clear_inpaint()
@@ -283,7 +332,7 @@ const Inpainting = {
         async retry_generatge(){
             if (!this.is_sd_active || !this.retry_params || !this.is_post_generate_box_showing) return;
             await this.discard_generation();
-            this.$set(this.sd_options, 'seed', Math.floor(Math.random()*2147483647));
+            this.sd_options['seed'] = Math.floor(Math.random()*2147483647);
             this.generate(true);
         },
 
@@ -328,6 +377,7 @@ const Inpainting = {
             if (!this.is_sd_active || !this.retry_params || !this.is_post_generate_box_showing) return;
             this.show_before = false;
             this.is_restoring = true;
+            this.completed_edit = null;
             this.inp_img = this.retry_params.img_url;
             this.undo_history.pop();
             this.is_post_generate_box_showing = false;
@@ -344,12 +394,13 @@ const Inpainting = {
                 return;
             if (!e.dataTransfer.files[0] || !e.dataTransfer.files[0].type.startsWith('image/'))
                 return;
-            let img_path = e.dataTransfer.files[0].path;
+            let img_path = window.getPathForFile(e.dataTransfer.files[0]);
             this.set_inp_image(img_path)
         },
 
         set_inp_image(img_path){
             if (!this.is_sd_active) return;
+            this.completed_edit = null;
             this.show_before = false
             this.retry_params = undefined
             this.retry_mask_cached = undefined
@@ -358,6 +409,7 @@ const Inpainting = {
             this.undo_history = []
             this.redo_history = []
             this.input_img_orig = img_path
+            this.export_format = image_export_format(img_path);
             this.history_key = Math.random()+"inp"
             if(this.$refs.inp_img_canvas){
                 this.$refs.inp_img_canvas.clear_inpaint()
@@ -375,6 +427,7 @@ const Inpainting = {
         },
 
         stop_all(){
+            if (this.stable_diffusion.pending_result || this.stable_diffusion.is_input_avail) return;
             this.is_post_generate_box_showing = false
             this.is_stopping = true;
             this.stable_diffusion.interupt();
@@ -395,22 +448,20 @@ const Inpainting = {
             this.retry_params  = undefined
         },
 
-        save_img(){
-            if (!this.is_sd_active || !this.$refs.inp_img_canvas.is_ready) return;
-            let out_path = window.ipcRenderer.sendSync('save_dialog' );
-            if(!out_path)
-                return
-            
-            let org_path = window.ipcRenderer.sendSync('save_b64_image',  this.$refs.inp_img_canvas.get_img_b64()  );
-            if(!org_path)
-                return
-            org_path = org_path.replaceAll("file://" , "")
-            window.ipcRenderer.sendSync('save_file', org_path+"||" +out_path);
+        async save_img(){
+            if (!this.is_sd_active || this.is_exporting || !this.$refs.inp_img_canvas.is_ready) return;
+            this.is_exporting = true;
+            try {
+                const name = (this.input_img_orig || 'Image').split('/').pop().replace(/\.[^.]+$/, '') + '-edited.' + this.export_format;
+                await export_image(this.$refs.inp_img_canvas.get_img_b64(), this.export_format, name);
+            } catch (error) { this.app.show_toast(error.message); }
+            finally { this.is_exporting = false; }
         },
 
        
-        send_to_inpaint(im_path ){
+        send_to_inpaint(im_path, format){
           this.set_inp_image(im_path)
+          if (['jpg','png'].includes(format)) this.export_format = format;
           this.app.functions.switch_page("Inpainting")
 
        }
@@ -427,9 +478,9 @@ Inpainting.sidebar_show = "always"
 
 </script>
 <style scoped>
-.settings-hidden ::v-deep .left_controls {display:none;}
-.settings-hidden ::v-deep .right_workpace {width:100%;}
-.inpaint-applet ::v-deep .applet_container {flex-wrap:nowrap;align-items:stretch;}
+.settings-hidden :deep(.left_controls) {display:none;}
+.settings-hidden :deep(.right_workpace) {width:100%;}
+.inpaint-applet :deep(.applet_container) {flex-wrap:nowrap;align-items:stretch;}
 .editor-model select {max-width:180px;background:var(--color-bg);color:var(--text-color-solid);border:1px solid var(--border-color-invert);border-radius:6px;padding:6px;}
 
 .fill-bar {padding:12px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--border-color-invert);}

@@ -22,7 +22,7 @@ export default {
     name: 'StableDiffusion',
     props: {},
     components: {},
-    beforeDestroy() { clearInterval(this.generation_loop); },
+    beforeUnmount() { clearInterval(this.generation_loop); },
     data() {
         return {
             is_stopping: false,
@@ -88,7 +88,7 @@ export default {
                         .then(() => {this.run_outcome = 'Complete';})
                         .catch(error => {this.run_outcome = 'Failed';if (this.attached_cbs && this.attached_cbs.on_err) this.attached_cbs.on_err(error.message);})
                         .finally(() => {
-                            if (this.diagnostics) this.$set(this.diagnostics.timings, 'finishing', (Date.now()-finishing)/1000);
+                            if (this.diagnostics) this.diagnostics.timings['finishing'] = (Date.now()-finishing)/1000;
                             this.pending_result = null;
                         });
                 } else {
@@ -173,7 +173,7 @@ export default {
             this.generation_loop = setInterval(() => {this.elapsed_seconds = (Date.now()-this.started_at)/1000;}, 1000);
         },
         interupt(){
-            if (this.is_input_avail || this.is_stopping) return;
+            if (this.is_input_avail || this.is_stopping || this.pending_result) return;
             this.is_stopping = true;
             this.generation_state_msg = 'Stopping…';
             this.remaining_times = '';

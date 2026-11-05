@@ -23,8 +23,6 @@
 <script>
 
 import FormInputMixin from "./FormInputMixin.vue"
-import Vue from 'vue'
-
 export default {
     name: 'Slider',
     mixins: [FormInputMixin],
@@ -37,7 +35,7 @@ export default {
         this.set_slider()
 
         if(this.form_values[this.config.id] === undefined && this.config.default_value ){
-            Vue.set( this.form_values  , this.config.id  , this.config.default_value  )
+            this.form_values[this.config.id] = this.config.default_value
         } 
 
     },
@@ -52,7 +50,7 @@ export default {
             let el = document.getElementById(this.rand_id)
             let value = (el.value - el.min) / (el.max - el.min) * 100
             value = Number(el.value) + ""
-            Vue.set(this.form_values , this.config.id , value)
+            this.form_values[this.config.id] = value
         } , 
 
         set_slider(){

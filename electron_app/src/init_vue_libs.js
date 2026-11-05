@@ -1,4 +1,4 @@
-import Vue from 'vue'
+
 
 
 
@@ -57,31 +57,18 @@ library.add(faEllipsisV)
 library.add(faInbox)
 library.add(faFilm)
 
-Vue.component('font-awesome-icon', FontAwesomeIcon)
-Vue.config.productionTip = false
-
-
-// vue bootstrap 
-import { BootstrapVue } from 'bootstrap-vue'
-
-// Import Bootstrap an BootstrapVue CSS files (order is important)
+import { BDropdown, BDropdownForm, BDropdownItemButton, BFormInput, BFormSelect,
+    BFormSelectOption, BPagination, BProgress, BCollapse, vBToggle } from 'bootstrap-vue-next'
 import 'bootstrap/dist/css/bootstrap.css'
-import 'bootstrap-vue/dist/bootstrap-vue.css'
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
+import VueToast from 'vue-toast-notification'
+import 'vue-toast-notification/dist/theme-sugar.css'
 
-Vue.use(BootstrapVue)
-
-
-
-// vue outside 
-import vClickOutside from 'v-click-outside'
-Vue.use(vClickOutside)
-
-
-import VueToast from 'vue-toast-notification';
-import 'vue-toast-notification/dist/theme-sugar.css';
-
-Vue.use(VueToast);
-
-
-
-export {}
+export function installVueLibraries(app) {
+    app.component('font-awesome-icon', FontAwesomeIcon)
+    for (const [name, component] of Object.entries({ BDropdown, BDropdownForm,
+        BDropdownItemButton, BFormInput, BFormSelect, BFormSelectOption, BPagination,
+        BProgress, BCollapse })) app.component(name, component)
+    app.directive('b-toggle', vBToggle)
+    app.use(VueToast)
+}

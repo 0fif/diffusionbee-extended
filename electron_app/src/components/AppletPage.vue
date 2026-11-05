@@ -15,7 +15,7 @@
                 Running 
                 <MoonLoader   class="moonloader1" color="#3E7BFA" size="25px" style="zoom:0.6; float:right; margin-left: 15px;"></MoonLoader>
             </div>
-            <div v-else @click="start" class="l_button button_colored button_medium" style="float:right">Start</div>
+            <button v-else @click="start" :disabled="!is_mounted || !stable_diffusion.is_input_avail || !!$refs.basic_sd_applet?.model_selection_error" class="l_button button_colored button_medium" style="float:right">Start</button>
 
 
             <span v-if="is_stop_avail && is_mounted &&  stable_diffusion.generated_by==applet_id && !stable_diffusion.is_input_avail "   >

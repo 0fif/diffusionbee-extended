@@ -1,5 +1,6 @@
 """Isolated MFLUX jobs. JSON input; prefixed JSON events on stdout; library logs on stderr."""
 import contextlib
+import fnmatch
 import importlib.metadata
 import json
 import os
@@ -14,6 +15,7 @@ import uuid
 CATALOG = json.loads(Path(__file__).with_name('models.json').read_text())
 OUTPUT = sys.stdout
 OUTPUT_LOCK = threading.Lock()
+MODEL_FILES = ['*.json', '*.safetensors', '*.jinja', '*.txt', '*.model', '*.ttf', '*.otf', 'README.md']
 
 
 def emit(kind, **values):
@@ -39,13 +41,37 @@ def validate_request(request):
     width, height = int(request.get('img_width', 1024)), int(request.get('img_height', 1024))
     if width <= 0 or height <= 0 or width % 16 or height % 16:
         raise ValueError('Image dimensions must be positive multiples of 16.')
-    steps = int(request.get('num_steps', 4))
+    minimum = model['model_meta_data'].get('min_edit_resolution', 0)
+    alignment = model['model_meta_data'].get('dimension_multiple', 16)
+    if max(width, height) < minimum or width % alignment or height % alignment:
+        raise ValueError(f'This model needs a working size of at least {minimum} pixels on the long side and dimensions divisible by {alignment}.')
+    steps = int(request.get('num_steps', model['model_meta_data'].get('steps', 4)))
     if steps < 1:
         raise ValueError('Steps must be positive.')
     if task != 'txt2img' and not Path(request.get('input_img', '')).is_file():
         raise ValueError('The input image is missing. Open it again before editing.')
-    return model, {'prompt': prompt, 'seed': int(request.get('seed', 0)),
-                   'width': width, 'height': height, 'num_inference_steps': steps, 'guidance': 1.0}
+    options = {'prompt': prompt, 'seed': int(request.get('seed', 0)),
+               'width': width, 'height': height, 'num_inference_steps': steps, 'guidance': 1.0}
+    if task != 'txt2img':
+        options['image_paths'] = [request['input_img']]
+    operation = request.get('edit_operation', 'replace')
+    if operation not in ('retouch', 'replace'):
+        raise ValueError('Unknown edit mode.')
+    if operation == 'retouch' and (task != 'inpainting' or
+            model['model_meta_data'].get('edit_mode') != 'instruction' or
+            'img2img' not in model['model_meta_data']['tasks']):
+        raise ValueError('This model does not support retouching.')
+    if task == 'inpainting' and operation == 'replace' and model['model_meta_data'].get('mask_mode') == 'native':
+        mask = Path(request.get('mask_image_path', ''))
+        if not mask.is_file():
+            raise ValueError('The selection mask is missing. Draw the selection again.')
+        from PIL import Image
+        with Image.open(request['input_img']) as source, Image.open(mask) as selection:
+            if source.size != selection.size:
+                raise ValueError('The selection mask must match the input image dimensions.')
+        mask_key = 'mask_image' if model['model_meta_data'].get('sd_type') == 'qwen_image_21_turbo' else 'mask_path'
+        options[mask_key] = str(mask)
+    return model, options
 
 
 def install(request):
@@ -92,7 +118,7 @@ def install(request):
                 emit('download', **progress)
 
     snapshot_download(model['repo'], revision=info.sha, local_dir=target,
-                      allow_patterns=['*.json', '*.safetensors', '*.jinja', '*.txt', '*.model', 'README.md'],
+                      allow_patterns=MODEL_FILES,
                       tqdm_class=DownloadProgress)
     emit('stage', message='Verifying downloaded files…')
     files = {str(p.relative_to(target)): p.stat().st_size for p in target.rglob('*')
@@ -110,7 +136,7 @@ def metadata(request):
     from huggingface_hub import HfApi
     model = model_entry(request['id'])
     info = HfApi().model_info(model['repo'], revision=model.get('revision'), files_metadata=True)
-    files = [f for f in info.siblings if f.rfilename.endswith(('.json', '.safetensors', '.jinja', '.txt', '.model')) or f.rfilename == 'README.md']
+    files = [f for f in info.siblings if any(fnmatch.fnmatch(f.rfilename, pattern) for pattern in MODEL_FILES)]
     emit('result', downloads=info.downloads, likes=info.likes,
          updated=info.last_modified.isoformat() if info.last_modified else None,
          bytes=sum(f.size or 0 for f in files), revision=info.sha, source='Hugging Face')
@@ -144,8 +170,25 @@ def generate(request):
     task = request.get('applet_name', 'txt2img')
     config = getattr(ModelConfig, model['model_meta_data']['sd_type'])()
     stage('loading', 'Loading ' + model['title'])
-    cls = Flux2Klein if task == 'txt2img' else Flux2KleinEdit
+    if model['model_meta_data'].get('sd_type') == 'qwen_image_21_turbo':
+        from mflux.models.qwen21.variants.edit.qwen_image_21_edit import QwenImage21Edit
+        cls = QwenImage21Edit
+    elif model['model_meta_data']['sd_type'] == 'fibo2_edit_turbo':
+        from mflux.models.fibo2.variants import Fibo2, Fibo2Edit
+        cls = Fibo2 if task == 'txt2img' else Fibo2Edit
+    else:
+        cls = Flux2Klein if task == 'txt2img' else Flux2KleinEdit
     class TimedEngine(cls):
+        def _encode_prompt(self, *args, **kwargs):
+            encoded = super()._encode_prompt(*args, **kwargs)
+            mx.eval(*(value for value in encoded if value is not None))
+            return encoded
+
+        def _encode_prompts(self, *args, **kwargs):
+            encoded = super()._encode_prompts(*args, **kwargs)
+            mx.eval(*(value for value in encoded if value is not None))
+            return encoded
+
         def _encode_prompt_pair(self, **kwargs):
             encoded = super()._encode_prompt_pair(**kwargs)
             # MLX is lazy: finish prompt computation before timing denoising.
@@ -174,8 +217,6 @@ def generate(request):
             self.last_step = now
 
     engine.callbacks.register(Progress())
-    if task != 'txt2img':
-        options['image_paths'] = [request['input_img']]
     stage('preparing', 'Preparing prompt' if task == 'txt2img' else 'Preparing prompt and input image')
     result = engine.generate_image(**options)
     stage('saving', 'Saving image')

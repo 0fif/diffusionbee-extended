@@ -4,7 +4,7 @@ const source = fs.readFileSync(require('path').join(__dirname, '../src/StableDif
     .replace(/^import .*$/gm, '').replace(/let notification_sound = .*\n/, '').replace('export default', 'return');
 const sent = [];
 const component = new Function('send_to_py', 'get_tokens', 'notification_sound', source)(message => sent.push(message), () => [], {play(){}});
-const vm = {...component.data(), $parent:{app_state:{app_data:{settings:{notification_sound:false}}}}, $set:(obj,key,value)=>{obj[key]=value;}};
+const vm = {...component.data(), $parent:{app_state:{app_data:{settings:{notification_sound:false}}}}};
 for (const [name, method] of Object.entries(component.methods)) vm[name] = method.bind(vm);
 (async () => {
     vm.is_input_avail = true;
@@ -27,6 +27,10 @@ for (const [name, method] of Object.entries(component.methods)) vm[name] = metho
     let finish;
     vm.text_to_img({prompt:'test',num_steps:3},{on_img:()=>new Promise(resolve=>{finish=resolve;})},'txt2img');
     await vm.state_msg('nwim {"generated_img_path":"test.png","timings":{"generation":6},"peak_memory_bytes":1000}');
+    const stopsBeforeFinishing=sent.length;
+    vm.interupt();
+    assert.equal(sent.length,stopsBeforeFinishing,'Do not report cancellation after generation has finished');
+    assert(!vm.is_stopping);
     const ready=vm.state_msg('inrd');
     assert(!vm.is_input_avail, 'image compositing completes before next job');
     finish();await ready;

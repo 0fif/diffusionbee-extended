@@ -17,9 +17,6 @@
 
 import FormInputMixin from "./FormInputMixin.vue"
 import { icon_library } from "../icon_library.js"
-import Vue from 'vue'
-
-
 export default {
     name: 'FilePathTextBox',
     mixins: [FormInputMixin],
@@ -30,7 +27,7 @@ export default {
     components: {},
     mounted() {
         if(this.form_values[this.config.id] === undefined && this.config.default_value ){
-            Vue.set( this.form_values  , this.config.id  , this.config.default_value  )
+            this.form_values[this.config.id] = this.config.default_value
         } 
     },
     data() {
@@ -44,7 +41,7 @@ export default {
             
             if(file_path && file_path != 'NULL'){
                 
-                Vue.set(this.form_values , this.config.id , file_path)
+                this.form_values[this.config.id] = file_path
             }  
         }
     },

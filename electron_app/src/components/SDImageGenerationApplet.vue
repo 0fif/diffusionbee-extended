@@ -39,7 +39,7 @@ import GenerationStatus from "../components/GenerationStatus.vue"
 import GenerationGallery from "./GenerationGallery.vue"
 import BasicSDApplet from "../components/BasicSDApplet.vue"
 import { controlnet_check_inputs , controlnet_proc_form_outputs , controlnet_required_assets } from "../utils/controlnet_frontend_utils.js"
-import Vue from 'vue'
+import { nextTick } from 'vue'
 
 export default {
     name: 'SDImageGenerationApplet.vue',
@@ -77,7 +77,7 @@ export default {
                     return
             }
 
-            if(!controlnet_check_inputs(this, Vue)){
+            if(!controlnet_check_inputs(this)){
                 return
             }
             
@@ -116,7 +116,7 @@ export default {
             options.num_imgs = 4
             options.raw_form_options.num_imgs = 4
             this.load_options(options)
-            Vue.nextTick(this.generate)
+            nextTick(this.generate)
             return true;
         } ,
 

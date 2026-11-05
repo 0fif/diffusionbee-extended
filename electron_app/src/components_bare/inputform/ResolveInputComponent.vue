@@ -79,7 +79,9 @@ export default {
     font-size: 12px;
 }
 
-.custom-select {
+.options_input .custom-select {
+    color: var(--text-color-solid);
+    padding: 0 0 0 32px;
     appearance: none;
     outline: none;
     border: none;
@@ -90,7 +92,6 @@ export default {
     line-height: 19px;
     text-align: center;
     cursor: pointer;
-    padding-left: 32px;
 
 }
 

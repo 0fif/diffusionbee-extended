@@ -24,3 +24,15 @@ for(const task of ['txt2img','img2img','inpainting']) for(const m of details.too
 console.log('PASS: catalog and tool eligibility agree, unknown types excluded, task restrictions respected');
 
 for(const task of ['txt2img','img2img','inpainting']) assert.deepEqual(details.tool_models({}, {mflux:true,build:40,modern_models:true}, task), [], 'Removing all models must leave zero choices');
+
+const fibo=catalog.find(m=>m.id==='mflux-fibo2-edit-turbo-q4');
+assert.equal(details.architecture_name(fibo),'FIBO 2 Edit Turbo · 4-bit');
+for(const task of ['txt2img','img2img','inpainting']) assert(details.tool_models({fibo},{mflux:true},task).includes(fibo));
+assert.equal(fibo.model_meta_data.mask_mode,'native');
+assert.equal(fibo.model_meta_data.edit_mode,'instruction');
+
+const qwen=catalog.find(m=>m.id==='mflux-qwen-image-21-turbo-q4');
+assert.equal(details.architecture_name(qwen),'Qwen Image 2.1 Turbo · 4-bit');
+assert(!details.tool_models({qwen},{mflux:true},'txt2img').length,'Advertise only integrated tool routes');
+assert.equal(details.tool_models({qwen},{mflux:true},'inpainting').length,1);
+assert.equal(qwen.model_meta_data.min_edit_resolution,1024);

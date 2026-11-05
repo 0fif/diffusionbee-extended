@@ -2,7 +2,7 @@
     <div style="height:100%" v-bind:style="style_obj">
                 
         <div v-if="!hide_dropdown" style=" position:absolute ; margin-top:7px ; margin-left:7px " class="">
-            <b-dropdown left variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
+            <b-dropdown no-fade placement="bottom-start" variant="link" size="sm" toggle-class="text-decoration-none" no-caret>
                 <template #button-content>
                     <div   class=" l_button button_colored" style="background-color: rgba(0,0,0,0.6);">
                         <font-awesome-icon icon="bars" />

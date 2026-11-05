@@ -39,7 +39,13 @@ function inpaint_assets(self , mode ){
 
 function prep_sd_optins(self , sd_options_object, mode , img_mask_url){
     const metadata = (self.app.assets_manager.all_avail_assets[self.sd_options.selected_sd_model] || {}).model_meta_data || {};
-    if (metadata.engine === 'mflux') {sd_options_object.num_imgs = 1;return;}
+    if (metadata.engine === 'mflux') {
+        sd_options_object.num_imgs = 1;
+        sd_options_object.edit_operation = self.retouch ? 'retouch' : 'replace';
+        delete sd_options_object.mask_image_path;
+        if (metadata.mask_mode === 'native' && !self.retouch) sd_options_object.mask_image_path = img_mask_url;
+        return;
+    }
     if (metadata.sd_type === 'sdxl_base') {
         sd_options_object.num_imgs = 1;
         sd_options_object.sd_mode_override = 'img2img';

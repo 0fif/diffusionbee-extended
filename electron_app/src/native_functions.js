@@ -152,11 +152,32 @@ ipcMain.on('open_url', (event, url) => {
 
 
 
+ipcMain.on('save_encoded_image', (event, destination, encoded) => {
+    const fs = require('fs');
+    const temporary = destination + '.' + require('crypto').randomBytes(8).toString('hex') + '.tmp';
+    try {
+        const match = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/.exec(encoded);
+        if (!match || !(match[1] === 'jpeg' ? /\.jpe?g$/i : /\.png$/i).test(destination))
+            throw new Error('The export format does not match the filename.');
+        fs.writeFileSync(temporary, Buffer.from(match[2], 'base64'));
+        fs.renameSync(temporary, destination);
+        event.returnValue = {success:true};
+    } catch (error) {
+        try { fs.unlinkSync(temporary); } catch (_) { /* No temporary file may have been written. */ }
+        event.returnValue = {success:false, error:error.message};
+    }
+});
+
 ipcMain.on('save_file', (event, arg) => {
     let p1 = arg.split("||")[0];
     let p2 = arg.split("||")[1];
-    require('fs').copyFileSync(p1, p2);
-    event.returnValue = '';
+    try {
+        require('fs').copyFileSync(p1, p2);
+        event.returnValue = true;
+    } catch (error) {
+        dialog.showErrorBox('Could not save image', error.message);
+        event.returnValue = false;
+    }
 })
 
 
@@ -408,7 +429,13 @@ function save_json(data , fname ){
     }
 
     let data_path = path.join(homedir , ".diffusionbee" , fname )
-    fs.writeFileSync( data_path, JSON.stringify(data) );
+    const temporary = data_path + '.' + require('crypto').randomBytes(8).toString('hex') + '.tmp';
+    try {
+        fs.writeFileSync(temporary, JSON.stringify(data));
+        fs.renameSync(temporary, data_path);
+    } finally {
+        if (fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    }
 }
 
 
@@ -432,13 +459,15 @@ function load_data(fname){
     }       
 }
 
-ipcMain.on('save_data', (event, arg , fname ) => {
-    if(fname)
-        save_json(arg, fname)
-    else
-        save_json(arg, "data.json")
-    event.returnValue = true ;
-})
+ipcMain.on('save_data', (event, arg, fname) => {
+    try {
+        save_json(arg, fname || 'data.json');
+        event.returnValue = true;
+    } catch (error) {
+        console.error('Could not save application data:', error.message);
+        event.returnValue = false;
+    }
+});
 
 
 ipcMain.on('load_data', (event, fname) => {
@@ -455,43 +484,12 @@ ipcMain.on('delete_file', (event, fpath) => {
         fs.unlinkSync(fpath);
         console.log("deleted")
         event.returnValue = true;
-    } catch {
+    } catch (error) {
         console.log("err in deleting")
-        event.returnValue = false;
+        event.returnValue = error.code === 'ENOENT';
     }
     
 })
-
-
-function run_realesrgan(input_path , cb ){
-    const path = require('path');
-    let out_path = "/tmp/"+Math.random()+".png";
-    const fs = require('fs');
-    let bin_path =  process.env.REALESRGAN_BIN || path.join(path.dirname(__dirname), 'core' , 'realesrgan_ncnn_macos' );
-    let weights_path = bin_path.replaceAll("realesrgan_ncnn_macos" , "models") + "/";
-    let proc = require('child_process').spawn( bin_path  , ['-m' , weights_path , '-i' , input_path , '-o' , out_path ]);
-
-    console.log([bin_path , '-m' , weights_path , '-i' , input_path , '-o' , out_path ])
-
-    proc.stderr.on('data', (data) => {
-        console.error(`sr stderr: ${data}`);
-    });
-
-    proc.stdout.on('data', (data) => {
-        console.error(`sr stderr: ${data}`);
-    });
-
-    proc.on('close', (code) => {
-        if (fs.existsSync(out_path)) {
-            cb(out_path);
-        }
-        else
-        {
-            cb('');
-        }
-    });
-}
-
 
 
 function add_custom_pytorch_models(pytorch_model_path, model_name, convert_params , cb ){
@@ -576,10 +574,10 @@ ipcMain.handle('add_custom_pytorch_models', async (event, pytorch_model_path, mo
 
 
 
-ipcMain.handle('run_realesrgan', async (event, arg) => {
-    const result = await new Promise(resolve => run_realesrgan( arg , resolve));
-    return result
-})
+ipcMain.handle('run_realesrgan', (_event, input) => {
+    const binary = process.env.REALESRGAN_BIN || path.join(path.dirname(__dirname), 'core', 'realesrgan_ncnn_macos');
+    return require('./upscale.cjs').runUpscale(input, binary, path.join(require('os').homedir(), '.diffusionbee', 'images'));
+});
 
 // ipcRenderer.invoke('run_realesrgan', '/Users/divamgupta/Downloads/333.png' ).then((result) => {
 //     alert(result)
@@ -620,65 +618,21 @@ ipcMain.on('get_assets_dir', (event, arg) => {
 
 
 
-ipcMain.on('download-file', (event, url, dest, downloadId) => {
-  
-  const fs = require('fs');
-  const path = require('path');
-
-  const file = fs.createWriteStream(dest);
-  const request = require('request');
-
-  const crypto = require('crypto');
-
-  let hash = crypto.createHash('md5');
-
-  request.get({
-      url,
-      followRedirect: true,
-      rejectUnauthorized: false, // ignore SSL certificate errors,
-      timeout: 20000 , //20s
-    })
-    .on('response', response => {
-      const totalBytes = parseInt(response.headers['content-length'], 10);
-      let downloadedBytes = 0;
-
-      response.on('data', chunk => {
-        downloadedBytes += chunk.length;
-        hash.update(chunk);
-        const progress = Math.round((downloadedBytes / totalBytes) * 100);
-        try { 
-           event.sender.send(`to_download`, {fn:'progress' , download_id: downloadId , msg:progress });
-        } catch (err) {
-            console.log(err)
-        }
-        
-      });
-
-      response.pipe(file);
-
-    })
-    .on('error', err => {
-      fs.unlink(dest, () => {});
-
-        try {
-           event.sender.send(`to_download`, {fn:'error' , download_id: downloadId , msg:err.message  });
-        } catch (err) {
-           console.log(err)
-        }
-        
-      
-    })
-    .on('end', () => {
-
-        const hashValue = hash.digest('hex');
-        
-        try {
-           event.sender.send(`to_download`, {fn:'success' , download_id: downloadId , msg: hashValue  });
-        } catch (err) {
-           console.log(err)
-        }
-        
-    });
+const activeDownloads = new Map();
+ipcMain.on('download-file', (event, url, dest, downloadId, checksum) => {
+    const key = event.sender.id + ':' + downloadId;
+    const send = (fn, msg) => {
+        if (fn !== 'progress') activeDownloads.delete(key);
+        if (!event.sender.isDestroyed()) event.sender.send('to_download', {fn, download_id:downloadId, msg});
+    };
+    const cancel = require('./model_download.cjs').downloadModel({url, dest, checksum,
+        progress: value => send('progress', value),
+        complete: digest => send('success', digest), failed: error => send('error', error)});
+    activeDownloads.set(key, cancel);
+});
+ipcMain.on('cancel-download', (event, downloadId) => {
+    const cancel = activeDownloads.get(event.sender.id + ':' + downloadId);
+    if (cancel) cancel();
 });
 
 

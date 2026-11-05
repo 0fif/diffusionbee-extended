@@ -9,10 +9,10 @@
                 <img  style="opacity:0.3; width: 100%; height: 100%;  object-fit: contain;" src="../assets/imgs/blank_illus4.png">
             </picture>
 
-            <center style="opacity: 0.5">
+            <div style="opacity:0.5;text-align:center">
                 <h2 style="margin-top: 20px;"> No images to display </h2>
                 <p > Enter a prompt to generate images using AI.</p>
-            </center>
+            </div>
             
         </div>
 
@@ -23,7 +23,6 @@
 <script>
 
 import GalleryPane from "../components_bare/GalleryPane.vue"
-import Vue from 'vue'
 import {image_manu_functions} from "./image_menu_functions.js"
 import {open_popup} from "../utils"
 
@@ -130,7 +129,7 @@ export default {
             for(let i=0 ; i < this.groups.length ; i++ ){
                 if(this.groups[i].group_id == new_group_data.group_id){
                     new_group_data = JSON.parse(JSON.stringify(new_group_data))
-                    Vue.set(this.groups , i , new_group_data ) 
+                    this.groups[i] = new_group_data
                 }
             }
         },
@@ -144,7 +143,7 @@ export default {
         }, 
 
         clear_all(){
-            Vue.set(this, "groups" , [])
+            this["groups"] = []
         }
 
     },

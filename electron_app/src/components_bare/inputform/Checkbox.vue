@@ -13,8 +13,6 @@
 <script>
 
 import FormInputMixin from "./FormInputMixin.vue"
-import Vue from 'vue'
-
 export default {
     name: 'Checkbox',
     mixins: [FormInputMixin],
@@ -26,17 +24,17 @@ export default {
     mounted() {
 
        if(this.form_values[this.config.id] === undefined){
-            Vue.set( this.form_values  , this.config.id  , this.config.default_value || false )
+            this.form_values[this.config.id] = this.config.default_value || false
         } 
         
         this.set_el()
     },
     data() {
         if(this.form_values[this.config.id] == 'true'){
-            Vue.set(this.form_values , this.config.id , true)
+            this.form_values[this.config.id] = true
         }
         if(this.form_values[this.config.id] == 'false'){
-            Vue.set(this.form_values , this.config.id , false)
+            this.form_values[this.config.id] = false
         }
 
         return {
@@ -47,15 +45,15 @@ export default {
         set_val() {
             let el = document.getElementById(this.rand_id)
             let value = el.checked
-            Vue.set(this.form_values , this.config.id , value)
+            this.form_values[this.config.id] = value
         }, 
         set_el(){
 
             if(this.form_values[this.config.id] == 'true'){
-                Vue.set(this.form_values , this.config.id , true)
+                this.form_values[this.config.id] = true
             }
             if(this.form_values[this.config.id] == 'false'){
-                Vue.set(this.form_values , this.config.id , false)
+                this.form_values[this.config.id] = false
             }   
 
             let el = document.getElementById(this.rand_id)

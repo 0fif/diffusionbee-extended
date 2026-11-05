@@ -54,7 +54,7 @@ export default {
         window.addEventListener('blur', this.cancel_gesture);
         if (this.image_source) this.on_img_change();
     },
-    beforeDestroy() {
+    beforeUnmount() {
         this.ro.disconnect(); cancelAnimationFrame(this.resize_frame); window.removeEventListener('blur', this.cancel_gesture);
         this.image_load_id = (this.image_load_id || 0) + 1;
     },
