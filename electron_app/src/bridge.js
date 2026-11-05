@@ -15,11 +15,10 @@ let RESTART_BACKEND_ON_CLOSE = false
 const path = require('path');
 const {createMfluxEngine} = require('./mflux_engine.cjs');
 const root = path.resolve(process.cwd(), '..');
+const runtime = require('./runtime_paths.cjs').runtimePaths({packaged:app.isPackaged, resources:process.resourcesPath, project:root, userData:app.getPath('userData')});
 const modernEngine = createMfluxEngine({
-    runner: process.env.MFLUX_RUNNER || path.join(root, 'backends/mflux/runner.py'),
-    python: process.env.MFLUX_PYTHON || path.join(root, '.runtime/mflux-env/bin/python'),
-    modelsDir: process.env.MFLUX_MODEL_DIR || path.join(root, '.runtime/mflux-models'),
-    outputDir: path.join(require('os').homedir(), '.diffusionbee/images'),
+    ...runtime,
+    outputDir: path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(require('os').homedir(), '.diffusionbee'), 'images'),
     emit: line => {if (win && !is_app_closing) win.webContents.send('to_renderer', 'py2b ' + line);}
 });
 const resolveDownloadSize = require('./model_previews.cjs').createDownloadSizeResolver();
@@ -52,7 +51,7 @@ function start_bridge() {
     }
     else{
         const path = require('path');
-        let backend_path =  path.join(path.dirname(__dirname), 'core' , 'diffusionbee_backend' );
+        let backend_path =  path.join(runtime.core, 'diffusionbee_backend');
         python = require('child_process').spawn( backend_path  );
     }
     

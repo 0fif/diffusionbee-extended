@@ -5,7 +5,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'db-preload-'));
 app.setPath('userData',path.join(dir,'profile'));
 const preload=path.join(dir,'preload.cjs');
 fs.writeFileSync(preload,fs.readFileSync(path.join(__dirname,'../src/preload.js'),'utf8').replace("import { contextBridge, ipcRenderer, webUtils } from 'electron'", "const { contextBridge, ipcRenderer, webUtils } = require('electron')"));
-const image=path.join(dir,'image.png');fs.writeFileSync(image,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1sAAAAASUVORK5CYII=','base64'));
+const image=path.join(dir,'image # fixture.png');fs.writeFileSync(image,Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aJ1sAAAAASUVORK5CYII=','base64'));
 ipcMain.on('load_data',(e,value)=>{e.returnValue=value;});
 ipcMain.handle('backend_info',()=>({ready:true}));
 app.whenReady().then(async()=>{
@@ -33,7 +33,16 @@ app.whenReady().then(async()=>{
   await win.webContents.debugger.sendCommand('DOM.setFileInputFiles',{nodeId,files:[image]});
   assert.equal(await evalJS("window.getPathForFile(document.querySelector('#file').files[0])"),image);
   win.webContents.debugger.detach();
-  console.log('PASS: sandboxed preload, sync/async IPC, allowed channels, data-only events, unsubscribe, real file paths');app.exit(0);
+  const {openImagePreview}=require('../src/image_preview.cjs');
+  const preview=await openImagePreview(image);
+  const prefs=preview.webContents.getLastWebPreferences();
+  assert(!prefs.nodeIntegration&&prefs.contextIsolation&&prefs.sandbox&&!prefs.javascript);
+  assert(!prefs.preload,'Preview must not inherit privileged app IPC');
+  assert(preview.webContents.getURL().includes('%23'),'Special filename characters must be encoded');
+  await assert.rejects(openImagePreview(path.join(dir,'missing.png')));
+  await assert.rejects(openImagePreview(path.join(dir,'profile.json')));
+  preview.destroy();
+  console.log('PASS: sandboxed preload, sync/async IPC, allowed channels, data-only events, unsubscribe, real file paths, isolated image preview');app.exit(0);
  } catch(error){console.error(error);app.exit(1);}
 });
 setTimeout(()=>{console.error('Preload check timed out');app.exit(1);},20000);

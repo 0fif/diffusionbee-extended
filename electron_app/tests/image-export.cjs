@@ -22,10 +22,5 @@ const png=await load('file://'+destination);pixels.getContext('2d').clearRect(0,
 await assert.rejects(export_image(original,'jpg','test.jpg'),/filename/);
 const before=writes;destination=undefined;assert.equal(await export_image(original,'jpg','test.jpg'),false);assert.equal(writes,before);
 destination=path.join(dir,'missing','export.jpg');await assert.rejects(export_image(original,'jpg','test.jpg'),/ENOENT/);
-const actual='/Users/where/Desktop/Untitled.png';let proof;
-if(fs.existsSync(actual)){
- destination=path.join(root,'../.local-validation/export-proof.jpg');await export_image(actual,'jpg','proof.jpg');
- const image=await load('file://'+destination);proof={sourceBytes:fs.statSync(actual).size,jpegBytes:fs.statSync(destination).size,width:image.width,height:image.height};
-}
-return {status:'PASS: source defaults, real encodings, dimensions, transparency, cancellation, extension mismatch, save failure',proof};
+return {status:'PASS: source defaults, real encodings, dimensions, transparency, cancellation, extension mismatch, save failure'};
 }

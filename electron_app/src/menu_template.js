@@ -7,7 +7,7 @@ let isMac = true;
 const menu_template = [
   // { role: 'appMenu' }
   ...(isMac ? [{
-    label: require('../package.json').name ,
+    label: require('../package.json').productName ,
     submenu: [
       { role: 'about' },
       { type: 'separator' },

@@ -70,6 +70,13 @@ async function createWindow() {
 		}
 	});
 
+    win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
+    win.webContents.on('will-navigate', (event, url) => {
+        const expected = process.env.WEBPACK_DEV_SERVER_URL || 'app://./index.html';
+        if (url.split('#')[0] !== expected.split('#')[0]) event.preventDefault();
+    });
+    win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+
 	win.removeMenu(); // remove the menu ( works for windows! )
 
 	electronLocalshortcut.register(win, ['CommandOrControl+R','CommandOrControl+Shift+R', 'F5'], () => {}) //  make the refresh shortcuts blank

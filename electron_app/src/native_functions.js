@@ -22,6 +22,11 @@ console.log(require('os').totalmem()/(1000000000) + " Is the total memory")
 
 
 // Read the backend bundle's own identity rather than pretending the source UI is newer.
+ipcMain.handle('preview_image', async (_event, source) => {
+    await require('./image_preview.cjs').openImagePreview(source);
+    return true;
+});
+
 ipcMain.handle('model-file-size', (_, filename) => {
     const stat = require('fs').statSync(filename);
     return stat.isFile() ? stat.size : null;
@@ -29,11 +34,12 @@ ipcMain.handle('model-file-size', (_, filename) => {
 
 ipcMain.handle('backend_info', () => {
     const fs = require('fs');
-    const backend = process.env.BIN_PATH;
+    const backend = process.env.BIN_PATH || (app.isPackaged ? path.join(process.resourcesPath, 'core/diffusionbee_backend') : null);
     let info = {build: 29, version: 'source', modern_models: false};
     if (backend) {
         try {
-            const metadata = JSON.parse(fs.readFileSync(path.join(path.dirname(backend), '../app.asar/package.json'), 'utf8'));
+            const metadataPath = app.isPackaged ? path.join(process.resourcesPath, 'legacy-backend.json') : path.join(path.dirname(backend), '../app.asar/package.json');
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
             const build = Number(metadata.build_number);
             info = {build, version: metadata.version, modern_models: build >= 40 && process.platform === 'darwin' && process.arch === 'arm64'};
         } catch (err) { console.warn('Could not identify backend bundle:', err.message); }
@@ -146,7 +152,7 @@ ipcMain.on('file_dialog', (event, arg) => {
 ipcMain.on('open_url', (event, url) => {
     let website_domain = require('../package.json').website ; 
     url = url.replace("__domain__" , website_domain );
-    require('electron').shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) require('electron').shell.openExternal(url);
     event.returnValue = '';
 })
 
@@ -298,10 +304,10 @@ ipcMain.on('show_about', (event, arg) => {
 
         if(is_windows)
         {
-            let about_content = require('../package.json').name + "\n" + "Version " + require('../package.json').version + " (" + require('../package.json').build_number + ")\n" + require('../package.json').description;
+            let about_content = require('../package.json').productName + "\n" + "Version " + require('../package.json').version + " (" + require('../package.json').build_number + ")\n" + require('../package.json').description;
             const choice = require('electron').dialog.showMessageBoxSync(this, {
                 buttons: ['Okay'],
-                title: require('../package.json').name ,
+                title: require('../package.json').productName ,
                 message: about_content
             });
         }
@@ -326,7 +332,7 @@ ipcMain.on('native_confirm', (event, arg) => {
         const choice = require('electron').dialog.showMessageBoxSync(this, {
             type: 'question',
             buttons: ['Yes', 'No'],
-            title: require('../package.json').name ,
+            title: require('../package.json').productName ,
             message: arg
         });
         if (choice === 1) {
@@ -367,7 +373,7 @@ ipcMain.on('native_alert', (event, arg) => {
         
         const choice = require('electron').dialog.showMessageBoxSync(this, {
             buttons: ['Okay'],
-            title: require('../package.json').name ,
+            title: require('../package.json').productName ,
             message: arg
         });
         
@@ -388,7 +394,7 @@ ipcMain.on('save_b64_image', (event, b64_str, save_to_tmp ) => {
     let base64Data = b64_str.replace(/^data:image\/png;base64,/, "");
     
     const homedir = require('os').homedir();
-    let save_dir = path.join(homedir , ".diffusionbee")
+    let save_dir = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee'))
 
 
     if (!fs.existsSync(save_dir)){
@@ -421,14 +427,14 @@ function save_json(data , fname ){
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
-    let save_dir = path.join(homedir , ".diffusionbee")
+    let save_dir = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee'))
 
 
     if (!fs.existsSync(save_dir)){
         fs.mkdirSync(save_dir, { recursive: true });
     }
 
-    let data_path = path.join(homedir , ".diffusionbee" , fname )
+    let data_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , fname )
     const temporary = data_path + '.' + require('crypto').randomBytes(8).toString('hex') + '.tmp';
     try {
         fs.writeFileSync(temporary, JSON.stringify(data));
@@ -444,7 +450,7 @@ function load_data(fname){
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
-    let data_path = path.join(homedir , ".diffusionbee" , fname );
+    let data_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , fname );
 
     if (fs.existsSync(data_path)){
         let json_str = fs.readFileSync( data_path );
@@ -497,7 +503,7 @@ function add_custom_pytorch_models(pytorch_model_path, model_name, convert_param
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
-    let models_path = path.join(homedir , ".diffusionbee" , "imported_models");
+    let models_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "imported_models");
 
     if (!fs.existsSync(models_path)){
         fs.mkdirSync(models_path, { recursive: true });
@@ -506,14 +512,14 @@ function add_custom_pytorch_models(pytorch_model_path, model_name, convert_param
 
     let script_path = process.env.PY_SCRIPT || "../backends/stable_diffusion/diffusionbee_backend.py"; 
     
-    let out_path =  path.join(homedir , ".diffusionbee" , "imported_models" , model_name+".tdict" );
+    let out_path =  path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "imported_models" , model_name+".tdict" );
     let proc;
     if (process.env.BIN_PATH) {
         proc = require('child_process').spawn(process.env.BIN_PATH, ['convert_model', pytorch_model_path, out_path]);
     } else if (fs.existsSync(script_path)) {
         proc = require('child_process').spawn( "python3"  , [ script_path ,  "convert_model" ,  pytorch_model_path , out_path ]);
     } else {
-        let bin_path =  path.join(path.dirname(__dirname), 'core' , 'diffusionbee_backend' );
+        let bin_path =  path.join(process.resourcesPath, 'core' , 'diffusionbee_backend' );
         proc = require('child_process').spawn( bin_path  , [ "convert_model" ,  pytorch_model_path , out_path ]);
     }
     
@@ -575,8 +581,8 @@ ipcMain.handle('add_custom_pytorch_models', async (event, pytorch_model_path, mo
 
 
 ipcMain.handle('run_realesrgan', (_event, input) => {
-    const binary = process.env.REALESRGAN_BIN || path.join(path.dirname(__dirname), 'core', 'realesrgan_ncnn_macos');
-    return require('./upscale.cjs').runUpscale(input, binary, path.join(require('os').homedir(), '.diffusionbee', 'images'));
+    const binary = process.env.REALESRGAN_BIN || path.join(process.resourcesPath, 'core', 'realesrgan_ncnn_macos');
+    return require('./upscale.cjs').runUpscale(input, binary, path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(require('os').homedir(), '.diffusionbee'), 'images'));
 });
 
 // ipcRenderer.invoke('run_realesrgan', '/Users/divamgupta/Downloads/333.png' ).then((result) => {
@@ -589,7 +595,7 @@ ipcMain.on('list_imported_models', (event, arg) => {
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
-    let models_path = path.join(homedir , ".diffusionbee" , "imported_models");
+    let models_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "imported_models");
 
     if (!fs.existsSync(models_path)){
         fs.mkdirSync(models_path, { recursive: true });
@@ -607,7 +613,7 @@ ipcMain.on('get_assets_dir', (event, arg) => {
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
-    let assets_path = path.join(homedir , ".diffusionbee" , "downloaded_assets");
+    let assets_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "downloaded_assets");
 
     if (!fs.existsSync(assets_path)) {
         fs.mkdirSync(assets_path, { recursive: true });

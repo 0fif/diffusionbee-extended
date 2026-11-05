@@ -11,7 +11,7 @@ const syncChannels = new Set([
     'native_confirm', 'native_alert'
 ]);
 const invokeChannels = new Set([
-    'add_custom_pytorch_models', 'run_realesrgan', 'backend_info', 'mflux-status',
+    'preview_image', 'add_custom_pytorch_models', 'run_realesrgan', 'backend_info', 'mflux-status',
     'model-preview', 'model-download-size', 'model-file-size', 'mflux-install',
     'mflux-remove', 'mflux-cancel-install', 'model-metadata', 'mflux-metadata'
 ]);

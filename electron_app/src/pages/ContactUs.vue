@@ -1,12 +1,9 @@
 <template>
     <div style="width: 100%; height :100% ; overflow:auto; padding:30px">
         <div class="model_dialog"> 
-            <h2 style="white-space: pre-line"> 
-                To contact us, please send an email at :
-                <br><br>
-                diffusionbee@proton.me
-            </h2> <br>            
-            <p>We will get back to you as soon as possible</p>
+            <h2>DiffusionBee Extended support</h2>
+            <p>Report a bug or request a feature on the project's GitHub page.</p>
+            <button class="l_button" @click="open_issues">Open GitHub issues</button>
         </div>
        
     </div>
@@ -25,7 +22,7 @@ const ContactUs = {
         return {};
     },
     methods: {
-
+        open_issues(){window.ipcRenderer.sendSync('open_url','https://github.com/0fif/diffusionbee-extended/issues');}
     },
 }
 
@@ -45,8 +42,8 @@ ContactUs.sidebar_show = "never"
 <style scoped>
 .model_dialog{
     position: fixed;
-    width: 250px ;
-    height:170px;
+    width: 320px ;
+    height:auto;
     background: var(--options-input-bg );
     left: calc( 50% -  var(--sidebar-width ) /2 + 175px );
     top:50%;

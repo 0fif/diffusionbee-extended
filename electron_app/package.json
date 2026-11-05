@@ -1,9 +1,9 @@
 {
-  "name": "DiffusionBee",
-  "version": "2.3.0",
+  "name": "diffusionbee-extended",
+  "version": "0.1.0-beta.1",
   "build_number": "0029",
-  "website": "https://diffusionbee.com",
-  "description": "Diffusion Bee - Stable Diffusion App.",
+  "website": "https://github.com/0fif/diffusionbee-extended",
+  "description": "Independent DiffusionBee fork with modern local image generation and editing.",
   "is_dev": false,
   "private": true,
   "scripts": {
@@ -26,7 +26,11 @@
     "test:models": "node tests/model-details.cjs && node tests/model-previews.cjs && electron tests/model-store.cjs",
     "test:preload": "electron tests/preload.cjs",
     "test:history": "electron tests/history.cjs",
-    "test:legacy": "node tests/legacy-tools.cjs"
+    "test:legacy": "node tests/legacy-tools.cjs",
+    "stage:runtime": "node scripts/stage-runtime.cjs",
+    "package:local": "vue-cli-service electron:build --mac --arm64 --dir --publish never",
+    "test:runtime": "node tests/runtime-paths.cjs",
+    "package:release": "EXTENDED_RELEASE=1 vue-cli-service electron:build --mac --arm64 --publish never"
   },
   "main": "background.js",
   "dependencies": {
@@ -87,5 +91,11 @@
     "> 1%",
     "last 2 versions",
     "not dead"
-  ]
+  ],
+  "productName": "DiffusionBee Extended",
+  "overrides": {
+    "vue-cli-plugin-electron-builder": {
+      "electron-builder": "$electron-builder"
+    }
+  }
 }

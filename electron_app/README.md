@@ -57,3 +57,21 @@ A real JuggernautXL masked edit was checked at 1024×768 with 80 input strength 
 ## Modern image models
 
 See [MFLUX setup, supported tasks, and validation](../backends/mflux/README.md). Models now has Installed/Discover views, compatible-model search, source metadata, and explicit missing-preview states. FLUX.2 Klein uses the existing generation and editing screens alongside the legacy models. Hardware performance is not used as a catalog eligibility rule.
+
+### Local packaged build (Apple Silicon, macOS 26+)
+
+`npm run stage:runtime` assembles a portable Python distribution and both engines
+from the ignored local build inputs. It checks `backends/mflux/requirements-release.txt`,
+rejects external runtime symlinks and probes the staged engine. It never copies
+downloaded generation models or user images. `npm run package:local` builds an app for local
+verification; set `CSC_IDENTITY_AUTO_DISCOVERY=false` for an unsigned test build.
+
+`npm run package:release` requires a Developer ID signing identity and
+`APPLE_KEYCHAIN_PROFILE` for `notarytool`; it fails if signing/notarization fails
+and never publishes automatically. Public distribution remains pending release
+verification and legacy-backend source provenance.
+
+Packaged modern models use the app's writable user-data `models` directory.
+Existing images/history remain under `~/.diffusionbee` for compatibility.
+`DIFFUSIONBEE_DATA_DIR` provides isolated data for validation; it is not a user
+setup requirement. Packaged engines resolve from app resources, not the checkout.

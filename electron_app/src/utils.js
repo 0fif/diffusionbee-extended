@@ -43,72 +43,9 @@ function resolve_asset_illustration(name) {
 
 
 
-const escapeHtml = (unsafe) => {
-    return unsafe.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
-}
-
-
-function open_popup( img_url , text ){
-            
-    let css = `
-        <style>
-        img {
-    
-                     width: 100%;
-                      height:100%;
-                      object-fit: contain;
-                      user-drag: none;
-          
-            }
-            @media (prefers-color-scheme: light) {
-                body {
-                    background-color: #f2f2f2;
-                }
-            }
-            @media (prefers-color-scheme: dark) {
-                body {
-                    background-color: #303030;
-                }
-            }
-            body{
-                padding : 0;
-                margin: 0;
-                -webkit-user-select: none;
-                    -webkit-app-region: drag;
-                  
-                      user-drag: none;
-                        -webkit-user-drag: none;
-                        user-select: none;
-                        -moz-user-select: none;
-                        -webkit-user-select: none;
-                        -ms-user-select: none;
-            }
-            p{
-                padding:40px;
-            }
-
-       </style>
-    `
-    let html = '<html><head>'+css+'</head><body>' ;
-
-    if (img_url)
-        html += '<img src="'+escapeHtml(img_url)+'"> ';
-    
-    if( text )
-         html += '<p> '+ escapeHtml(text) +' </p>';
-    
-    html += '</body></html>'
-    
-    let uri = "data:text/html," + encodeURIComponent(html);
-    uri;
-    let if_frame= '';
-    if(navigator.platform.toUpperCase().indexOf('MAC')>=0 ){
-        if_frame = ",frame=false"
-    }
-
-    window.open(escapeHtml(uri), '_blank', 'top=100,left=100,nodeIntegration=no'+if_frame); // 
-    
-
+function open_popup(img_url) {
+    return window.ipcRenderer.invoke('preview_image', img_url.replace(/^file:\/\//, ''))
+        .catch(error => window.ipcRenderer.sendSync('native_alert', 'Could not open the image. ' + error.message));
 }
 
 

@@ -51,7 +51,7 @@
                 </template>
                 
                 <b-dropdown-item-button @click="show_help" >Help</b-dropdown-item-button>
-                <b-dropdown-item-button @click="open_url('https://discord.gg/t6rC5RaJQn')"  >Start Discord Chat</b-dropdown-item-button>
+                <b-dropdown-item-button @click="open_url('https://github.com/0fif/diffusionbee-extended/issues')"  >Report an issue</b-dropdown-item-button>
                 <b-dropdown-item-button  @click="app.functions.switch_page('Logs')" >Show Logs</b-dropdown-item-button>
 
                 <b-dropdown-item-button @click="open_url('https://diffusionbee.com/MODEL_LICENSE.txt')" >Model License</b-dropdown-item-button>
@@ -98,7 +98,7 @@ export default {
             window.ipcRenderer.sendSync('show_about', '');
         },
         show_help(){
-            window.ipcRenderer.sendSync('open_url', "https://diffusionbee.com");
+            window.ipcRenderer.sendSync('open_url', "https://github.com/0fif/diffusionbee-extended");
         } ,
 
         open_url(url){
