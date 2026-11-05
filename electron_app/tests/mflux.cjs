@@ -10,7 +10,7 @@ const {createMfluxEngine}=require('../src/mflux_engine.cjs');
  fs.writeFileSync(path.join(modelDir,'.installed.json'),JSON.stringify({repo:'test/image',files:{weights:7},bytes:7}));
  let events=[];
  const engine=createMfluxEngine({runner,python:process.execPath,modelsDir:directory,outputDir:directory,emit:event=>events.push(event),
-   spawnProcess:(python,args,options)=>require('child_process').spawn(python,args.filter(a=>a!=='-u'),options)});
+   spawnProcess:(python,args,options)=>{assert.equal(options.env.PYTHONDONTWRITEBYTECODE,'1','Engine must not write bytecode into the signed app');return require('child_process').spawn(python,args.filter(a=>a!=='-u'),options);}});
  const wait=async()=>{for(let n=0;engine.busy&&n<200;n++)await new Promise(resolve=>setTimeout(resolve,25));assert(!engine.busy,'job finishes');};
  const submit=prompt=>engine.handle('t2im '+JSON.stringify({engine:'mflux',selected_sd_model:'image-model',prompt}));
  assert.equal(engine.handle('t2im {"prompt":"legacy"}'),false);

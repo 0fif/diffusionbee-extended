@@ -29,7 +29,7 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
                 settled = true; clearTimeout(killTimer);
                 error ? reject(error) : resolve(value);
             };
-            child = spawnProcess(python, ['-u', runner, command], {env:{...process.env, PYTHONUNBUFFERED:'1'}});
+            child = spawnProcess(python, ['-u', runner, command], {env:{...process.env, PYTHONUNBUFFERED:'1', PYTHONDONTWRITEBYTECODE:'1'}});
             child.on('error', error => finish(new Error('Could not start MFLUX: ' + error.message)));
             child.stdin.on('error', () => {});
             child.stdin.end(JSON.stringify({...request, models_dir:modelsDir, output_dir:outputDir}));
