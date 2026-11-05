@@ -10,7 +10,7 @@ The local packaging candidate also contains a portable MFLUX 0.24.0/Python runti
 Its dependency inventory is pinned in `backends/mflux/requirements-release.txt`;
 build staging records backend and dependency-lock hashes in `runtime-provenance.json`.
 No downloaded generation models or user data are packaged; the small bundled Upscaler weights are retained. The upstream 2.5.3 tag still resolves to
-`daf82f8`; matching source/build provenance for that binary remains unresolved,
+`daf82f8`; that tag does not contain the newer backend implementation,
 as also reported in upstream issues [501](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/issues/501)
 and [561](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui/issues/561).
-A successful local binary test is not resolution of that distribution question.
+The beta bundles the unmodified official legacy runtime; the fork’s source and packaging changes are published in this repository.

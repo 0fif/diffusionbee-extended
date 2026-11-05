@@ -4,7 +4,7 @@
 
 Extended is an independent fork of [DiffusionBee](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui) by Divam Gupta. It keeps the original idea—generate images locally without assembling a Python environment—and builds on the editor, model management, and everyday workflows.
 
-**Release status:** a self-contained macOS installer has been built and tested locally. A public release has **not** been published yet. Updates and installers will appear on [this fork's Releases page](https://github.com/0fif/diffusionbee-extended/releases). Upstream DiffusionBee downloads are a different application.
+**Public beta:** [Download 0.1.0-beta.1 for Apple Silicon Macs](https://github.com/0fif/diffusionbee-extended/releases/tag/v0.1.0-beta.1). Requires macOS 26 or newer. The installer includes both engines and Python; generation models download inside the app.
 
 ## Why this fork?
 
@@ -68,7 +68,7 @@ The current installer target is **Apple Silicon (M1 or newer), macOS 26 or newer
 
 The app includes its engines and Python runtime. **Users do not need another DiffusionBee installation, Python, Homebrew, or developer tools.** Choose and download generation models inside the app; model weights are separate from the installer and can require several gigabytes each. Memory needs and generation speed depend on the model, working resolution, and available system memory.
 
-Once a public release is available:
+To install:
 
 1. Download the DMG from [Extended's Releases page](https://github.com/0fif/diffusionbee-extended/releases).
 2. Open it and drag **DiffusionBee Extended** into Applications.
@@ -89,7 +89,7 @@ Packaged modern models are stored in the application's writable user-data direct
 - Precise facial corrections and identity preservation are not guaranteed. A successful generation or a clean mask boundary does not establish that the requested edit looks right.
 - Not every catalog model/task combination has been tested. Architecture support and a successful check of one checkpoint are different things.
 - Interpolator uses the legacy backend and compatible legacy models. Its actual video-render workflow still needs end-to-end verification in the release candidate.
-- The candidate has passed standalone launch, bundled-engine generation, Upscaler, History reopening, and preview checks. Public distribution remains pending final release checks and resolution of the legacy backend's source provenance. See [release-source details](docs/RELEASE_SOURCE.md).
+- The candidate has passed standalone launch, bundled-engine generation, Upscaler, History reopening, and preview checks. This first release is a public beta. See [release-source details](docs/RELEASE_SOURCE.md) for the bundled engine’s origin.
 
 ## Development and contributing
 

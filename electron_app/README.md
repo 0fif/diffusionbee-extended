@@ -69,8 +69,7 @@ verification; set `CSC_IDENTITY_AUTO_DISCOVERY=false` for an unsigned test build
 `npm run package:release` applies an ad-hoc signature, verifies the full app bundle,
 and builds DMG/ZIP artifacts. It needs no Apple Developer account and does not
 notarize or publish automatically. First-launch approval instructions are in the
-root README. Public distribution remains pending final checks and legacy-backend
-source provenance.
+root README. The public beta bundles both engines; see `docs/RELEASE_SOURCE.md` for their origin.
 
 Packaged modern models use the app's writable user-data `models` directory.
 Existing images/history remain under `~/.diffusionbee` for compatibility.
