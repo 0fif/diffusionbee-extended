@@ -26,7 +26,7 @@ The official Apple Silicon **2.5.3** app bundle was tested on this machine. Its 
 
 Extended uses its own package version and queries the actual backend build asynchronously. A supported build-40 Apple Silicon backend enables the restored SDXL and Flux catalog paths. Flux uses the same **Text to image** screen and model selector as Stable Diffusion. Unsupported backend/model combinations remain gated.
 
-Development hot reload is disabled by default to avoid destroying an active editing session. Set `DIFFUSIONBEE_LIVE_RELOAD=1` to opt in while developing; restart deliberately after changing code otherwise.
+Development uses the same compiled app and protocol as production. Restart `npm run electron:serve:release` after code changes; it rebuilds before launching and does not reload an active editing session.
 
 ### Editor and generation validation
 
@@ -42,7 +42,7 @@ The launcher uses DiffusionBee's existing `~/.diffusionbee` data directory. The 
 
 `npm run electron:serve` still supports a Python backend via `PY_SCRIPT` or a binary via `BIN_PATH`. The checked-in Python requirements pin `tensorflow==2.10.0`, which has no matching native wheel for this machine's Python 3.9.6 environment. This source-only setup remains unresolved; it is not required for the verified release-backed route above.
 
-The `serve:ui` and `build:ui` scripts refer to an upstream `AppDemoUI.vue` file absent from this checkout. Use the commands above.
+The build uses webpack 5 and Vue Loader directly, with electron-builder for packaging. Vue CLI and its Electron wrapper are no longer required. Use Node.js 22.14 or newer. `npm run build` compiles the renderer, main process and sandboxed preload; `npm run lint` checks source, scripts and tests.
 
 ## Packaging
 

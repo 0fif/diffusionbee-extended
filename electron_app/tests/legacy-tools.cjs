@@ -21,6 +21,6 @@ fs.writeFileSync(binary,`#!${process.execPath}\nconst fs=require('fs');const a=p
  const details=fs.readFileSync(path.join(__dirname,'../src/utils/model_details.js'),'utf8').replace(/^import .*$/gm,'').replace(/export /g,'');
  const {tool_models}=new Function('model_available','validation',details+';return {tool_models};')(()=>true,{});
  const assets={sd:{id:'sd',model_meta_data:{type:'sd_model',sd_type:'SD_1x'}},xl:{id:'xl',model_meta_data:{type:'sd_model',sd_type:'sdxl_base'}},qwen:{id:'qwen',model_meta_data:{type:'mflux_model',engine:'mflux'}},flux:{id:'flux',model_meta_data:{type:'flux_nnc'}}};
- assert.deepEqual(tool_models(assets,{},'applet_frame_interpolate').map(m=>m.id),['sd']);
+ for (const task of ['applet_frame_interpolate','applet_deforum','applet_lora_training']) assert.deepEqual(tool_models(assets,{},task).map(m=>m.id),['sd']);
  console.log('PASS: Upscaler arguments/paths, missing binary/input, exit failure cleanup, stale-image guard, actual output dimensions, History, retry readiness; Interpolator model eligibility');
 })().catch(error=>{console.error(error);process.exitCode=1;});

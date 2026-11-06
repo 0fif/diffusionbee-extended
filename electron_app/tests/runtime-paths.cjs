@@ -9,6 +9,13 @@ const custom=runtimePaths({...options,packaged:true,env:{MFLUX_PYTHON:'/custom/p
 console.log('PASS: packaged engines are relocatable, models are writable, development and explicit overrides preserved');
 
 const previous=process.env.EXTENDED_RELEASE;process.env.EXTENDED_RELEASE='1';
-const builder=require('../vue.config.js').pluginOptions.electronBuilder.builderOptions;
+const builder=require('../electron-builder.config.cjs');
 assert.equal(builder.mac.identity,null);assert.equal(builder.afterPack,'./scripts/adhoc-sign.cjs','Release must apply and verify its ad-hoc signature');
 if(previous===undefined)delete process.env.EXTENDED_RELEASE;else process.env.EXTENDED_RELEASE=previous;
+
+const configs=require('../webpack.config.cjs')('production');
+assert.deepEqual(configs.map(c=>c.target),['web','electron-main','electron-preload']);
+assert(configs.every(c=>c.output.path.endsWith('/dist_electron/bundled')));
+assert.equal(builder.directories.app,'dist_electron/bundled');
+assert.equal(builder.directories.output,'dist_electron');
+console.log('PASS: direct build preserves separate renderer/main/preload targets and packaged app directory');

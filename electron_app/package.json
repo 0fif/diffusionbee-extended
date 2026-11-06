@@ -1,7 +1,7 @@
 {
   "name": "diffusionbee-extended",
-  "version": "0.1.0-beta.3",
-  "build_number": "0030",
+  "version": "0.1.0-beta.4",
+  "build_number": "0031",
   "website": "https://github.com/0fif/diffusionbee-extended",
   "description": "Independent DiffusionBee fork with modern local image generation and editing.",
   "is_dev": false,
@@ -10,13 +10,11 @@
     "test:export": "electron tests/image-export.cjs",
     "test:editor": "electron tests/editor.cjs",
     "electron:serve:release": "node scripts/serve-release.cjs",
-    "serve": "vue-cli-service serve",
-    "serve:ui": "vue-cli-service serve ./src/main_demoui.js",
-    "build:ui": "vue-cli-service build ./src/main_demoui.js",
-    "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint",
-    "electron:build": "vue-cli-service electron:build",
-    "electron:serve": "vue-cli-service electron:serve",
+    "serve": "node scripts/build.cjs serve",
+    "build": "node scripts/build.cjs",
+    "lint": "eslint src tests scripts *.cjs",
+    "electron:build": "node scripts/build.cjs package",
+    "electron:serve": "node scripts/build.cjs serve",
     "postinstall": "electron-builder install-app-deps",
     "postuninstall": "electron-builder install-app-deps",
     "test:mflux": "node tests/mflux.cjs",
@@ -28,9 +26,9 @@
     "test:history": "electron tests/history.cjs",
     "test:legacy": "node tests/legacy-tools.cjs",
     "stage:runtime": "node scripts/stage-runtime.cjs",
-    "package:local": "vue-cli-service electron:build --mac --arm64 --dir --publish never",
+    "package:local": "node scripts/build.cjs package --mac --arm64 --dir --publish never",
     "test:runtime": "node tests/runtime-paths.cjs",
-    "package:release": "EXTENDED_RELEASE=1 vue-cli-service electron:build --mac --arm64 --publish never",
+    "package:release": "EXTENDED_RELEASE=1 node scripts/build.cjs package --mac --arm64 --publish never",
     "test:navigation": "electron tests/navigation.cjs",
     "test:audit": "node tests/audit.cjs"
   },
@@ -56,37 +54,19 @@
     "vue-toast-notification": "3.1.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.16",
-    "@babel/eslint-parser": "^7.12.16",
-    "@vue/cli-plugin-babel": "~5.0.0",
-    "@vue/cli-plugin-eslint": "~5.0.0",
-    "@vue/cli-service": "~5.0.0",
     "@vue/compiler-sfc": "3.5.44",
-    "babel-eslint": "^10.1.0",
     "electron": "45.2.2",
-    "electron-builder": "^23.3.3",
-    "electron-devtools-installer": "^3.1.0",
-    "electron-osx-sign": "0.6.0",
-    "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3",
-    "vue-cli-plugin-electron-builder": "^2.1.1"
-  },
-  "eslintConfig": {
-    "root": true,
-    "env": {
-      "node": true
-    },
-    "extends": [
-      "plugin:vue/vue3-essential",
-      "eslint:recommended"
-    ],
-    "parserOptions": {
-      "parser": "babel-eslint"
-    },
-    "rules": {
-      "vue/multi-word-component-names": "off",
-      "vue/no-mutating-props": "off"
-    }
+    "electron-builder": "26.18.0",
+    "@electron/osx-sign": "2.7.2",
+    "webpack": "5.112.2",
+    "vue-loader": "17.4.2",
+    "html-webpack-plugin": "5.6.8",
+    "css-loader": "7.1.5",
+    "style-loader": "4.0.0",
+    "eslint": "10.14.0",
+    "eslint-plugin-vue": "10.12.0",
+    "@eslint/js": "10.0.1",
+    "globals": "^17.0.0"
   },
   "browserslist": [
     "> 1%",
@@ -95,8 +75,6 @@
   ],
   "productName": "DiffusionBee Extended",
   "overrides": {
-    "vue-cli-plugin-electron-builder": {
-      "electron-builder": "$electron-builder"
-    }
+    "minimatch@>=7.0.0 <11.0.1": "11.0.1"
   }
 }

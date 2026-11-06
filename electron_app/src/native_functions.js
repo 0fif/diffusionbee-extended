@@ -192,7 +192,7 @@ ipcMain.on('copy_to_clipboard', (event, arg) => {
 })
 
 
-ipcMain.on('get_from_clipboard', (event, arg) => {
+ipcMain.on('get_from_clipboard', (event) => {
     event.returnValue = clipboard.readText();
 })
 
@@ -208,7 +208,7 @@ ipcMain.on('show_dialog_on_quit', (event, msg) => {
 })
 
 
-ipcMain.on('dont_show_dialog_on_quit', (event, arg) => {
+ipcMain.on('dont_show_dialog_on_quit', (event) => {
     if(win)
         win.show_dialog_on_quit = false;
     event.returnValue = 'ok';
@@ -216,7 +216,7 @@ ipcMain.on('dont_show_dialog_on_quit', (event, arg) => {
 })
 
 
-ipcMain.on('get_instance_id', (event, arg) => {
+ipcMain.on('get_instance_id', (event) => {
     if (settings.hasSync('instance_id')){
         event.returnValue =  settings.getSync('instance_id')
         return;
@@ -228,7 +228,7 @@ ipcMain.on('get_instance_id', (event, arg) => {
 })
 
 
-ipcMain.on('unfreeze_win', (event, arg) => {
+ipcMain.on('unfreeze_win', (event) => {
 
     if (win) {
 	win.savable=true;
@@ -270,7 +270,7 @@ ipcMain.on('unfreeze_win', (event, arg) => {
 
 
 
-ipcMain.on('freeze_win', (event, arg) => {
+ipcMain.on('freeze_win', (event) => {
 
     if (win) {
 	win.savable=false;
@@ -297,7 +297,7 @@ ipcMain.on('freeze_win', (event, arg) => {
 
 
 
-ipcMain.on('show_about', (event, arg) => {
+ipcMain.on('show_about', (event) => {
 
     if (win) {
 
@@ -335,7 +335,7 @@ ipcMain.on('native_confirm', (event, message) => {
     }) === 0 : false;
 });
 
-ipcMain.on('close_window', (event, arg) => {
+ipcMain.on('close_window', (event) => {
 
     if (win) {
         
@@ -493,7 +493,7 @@ ipcMain.handle('run_realesrgan', (_event, input) => {
 
 
 
-ipcMain.on('list_imported_models', (event, arg) => {
+ipcMain.on('list_imported_models', (event) => {
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();
@@ -511,7 +511,7 @@ ipcMain.on('list_imported_models', (event, arg) => {
 
 
 
-ipcMain.on('get_assets_dir', (event, arg) => {
+ipcMain.on('get_assets_dir', (event) => {
     const path = require('path');
     const fs = require('fs');
     const homedir = require('os').homedir();

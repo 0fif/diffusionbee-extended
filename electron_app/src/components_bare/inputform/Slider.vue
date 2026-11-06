@@ -48,8 +48,7 @@ export default {
     methods: {
         set_val() {
             let el = document.getElementById(this.rand_id)
-            let value = (el.value - el.min) / (el.max - el.min) * 100
-            value = Number(el.value) + ""
+            const value = Number(el.value) + ""
             this.form_values[this.config.id] = value
         } , 
 

@@ -4,19 +4,15 @@
 
 Extended is an independent fork of [DiffusionBee](https://github.com/divamgupta/diffusionbee-stable-diffusion-ui) by Divam Gupta. It keeps the original idea—generate images locally without assembling a Python environment—and builds on the editor, model management, and everyday workflows.
 
-**Public beta:** [Download 0.1.0-beta.3 for Apple Silicon Macs](https://github.com/0fif/diffusionbee-extended/releases/tag/v0.1.0-beta.3). Requires macOS 26 or newer. The installer includes both engines and Python; generation models download inside the app.
+**Public beta:** [Download 0.1.0-beta.4 for Apple Silicon Macs](https://github.com/0fif/diffusionbee-extended/releases/tag/v0.1.0-beta.4). Requires macOS 26 or newer. The installer includes both engines and Python; generation models download inside the app.
 
 ## Why this fork?
 
-DiffusionBee made local image generation approachable. We wanted to keep that simplicity while improving three things:
+DiffusionBee made local image generation approachable, but its public source has been largely dormant: the latest commit on its main branch is from December 2023, and its latest app release is 2.5.3 from August 2024. The public source also does not match all the functionality shipped in that release.
 
-- **More useful photo editing.** Select an area, zoom in, adjust the mask, describe the change, and compare the result without forcing the entire photo into a square.
-- **Newer image models.** Integrate modern engines into familiar tools, with model choices based on the task rather than separate tabs for each architecture.
-- **A dependable workflow.** Make generation progress, cancellation, downloads, History, and export behave consistently—including when something fails.
+Extended is an independent effort to keep that useful app up to date. It is not an official DiffusionBee update. The changes made in this fork are listed below.
 
-Extended is a continuation of that work, not an official DiffusionBee update or a promise of Photoshop-level editing quality.
-
-## What we've added and improved
+## What's added and improved
 
 ### A more capable photo editor
 
@@ -88,8 +84,8 @@ Packaged modern models are stored in the application's writable user-data direct
 
 - Precise facial corrections and identity preservation are not guaranteed. A successful generation or a clean mask boundary does not establish that the requested edit looks right.
 - Not every catalog model/task combination has been tested. Architecture support and a successful check of one checkpoint are different things.
-- Interpolator uses the legacy backend and compatible legacy models. Its actual video-render workflow still needs end-to-end verification in the release candidate.
-- The candidate has passed standalone launch, bundled-engine generation, Upscaler, History reopening, and preview checks. This first release is a public beta. See [release-source details](docs/RELEASE_SOURCE.md) for the bundled engine’s origin.
+- Interpolator and Deforum use compatible legacy Stable Diffusion models; modern image models cannot be used in those tools.
+- The candidate has passed standalone launch, bundled-engine generation, Upscaler, History reopening, and preview checks. This release is a public beta. See [release-source details](docs/RELEASE_SOURCE.md) for the bundled engine’s origin.
 
 ## Development and contributing
 

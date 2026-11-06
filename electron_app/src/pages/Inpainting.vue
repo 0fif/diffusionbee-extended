@@ -314,7 +314,7 @@ const Inpainting = {
                     that.is_post_generate_box_showing = true
                     } catch (err) {
                         that.backend_error = 'Could not prepare the edit. Your original image is unchanged.';
-                        throw new Error(that.backend_error);
+                        throw new Error(that.backend_error, {cause:err});
                     } finally { that.is_restoring = false; }
                 },
                 on_progress(p){

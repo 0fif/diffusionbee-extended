@@ -13,7 +13,7 @@ export function model_tasks(model) {
 // The catalog and tool selectors share these task and availability rules.
 export function tool_models(assets, backend, task) {
     return Object.values(assets).filter(model => {
-        if (task === 'applet_frame_interpolate') {
+        if (['applet_frame_interpolate','applet_deforum','applet_lora_training'].includes(task)) {
             const meta = model.model_meta_data || {};
             return meta.engine !== 'mflux' && meta.type === 'sd_model' && meta.sd_type !== 'sdxl_base' && model_available(model, backend);
         }

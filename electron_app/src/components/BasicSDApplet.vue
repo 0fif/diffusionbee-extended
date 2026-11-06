@@ -202,7 +202,7 @@ export default {
         },
         model_selection_error(){
             if (this.name === 'applet_frame_interpolate' && !this.tool_models.length) return 'Interpolator requires a legacy Stable Diffusion model. Your installed models are not supported by this tool.';
-            if (!['txt2img','img2img','inpainting','applet_frame_interpolate'].includes(this.name)) return '';
+            if (!['txt2img','img2img','inpainting','applet_frame_interpolate','applet_deforum','applet_lora_training'].includes(this.name)) return '';
             if (!this.tool_models.length) return 'No models available for this tool. Download a model in Models.';
             return this.tool_models.some(model => model.id === this.sd_options.selected_sd_model) ? '' :
                 'Choose an available model for this tool. You can download models in Models.';
@@ -221,7 +221,7 @@ export default {
             // add the avail models to the form
             let el = find_in_form_recursive( "selected_sd_model" , form)
             if(el){
-                if (['txt2img','img2img','inpainting','applet_frame_interpolate'].includes(this.name)) {
+                if (['txt2img','img2img','inpainting','applet_frame_interpolate','applet_deforum','applet_lora_training'].includes(this.name)) {
                     el.options = this.tool_models.map(model => model.id);
                 } else {
                     el.options = Object.values(this.app.assets_manager.all_avail_assets)
@@ -305,7 +305,7 @@ export default {
         },
 
         required_assets_modified(){
-            let ret = []
+            let ret
             if(!this.required_assets){
                 ret = []
             } else {
