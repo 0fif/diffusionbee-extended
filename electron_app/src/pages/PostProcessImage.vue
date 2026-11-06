@@ -10,6 +10,7 @@
     >   
 
     <template v-slot:input_buttons>
+            <button v-if="is_running" @click="app.stable_diffusion.interupt()" :disabled="app.stable_diffusion.is_stopping || !!app.stable_diffusion.pending_result" class="l_button button_medium">{{app.stable_diffusion.is_stopping ? 'Stopping…' : 'Stop'}}</button>
             <button :disabled="is_running || app.stable_diffusion?.is_input_avail === false" @click="upscale" class="l_button button_colored button_medium" style="float:right">{{is_running ? 'Upscaling…' : 'Upscale'}}</button>
     </template>
 
@@ -82,21 +83,28 @@ const PostProcessImage = {
                 this.app.show_toast('The upscaler accepts input images up to 2048 × 2048 pixels.');return;
             }
             this.is_running = true;
+            this.app.stable_diffusion.begin_run('upscale', 0);
+            this.app.stable_diffusion.generation_state_msg = 'Upscaling image';
             const id = 'upscale:' + Date.now();
             try {
                 const result = await window.ipcRenderer.invoke('run_realesrgan', input);
-                const image = await new Promise((resolve, reject) => {
+                this.app.stable_diffusion.generation_state_msg = 'Finishing image';
+                const finishing = new Promise((resolve, reject) => {
                     const img = new Image();img.onload = () => resolve(img);img.onerror = () => reject(new Error('The upscaled image could not be opened.'));
                     img.src = 'file://' + encodeURI(result).replace(/#/g,'%23').replace(/\?/g,'%3F');
                 });
+                this.app.stable_diffusion.pending_result = finishing;
+                const image = await finishing;
                 const params = {applet_name:'upscale',input_img:input,img_width:image.naturalWidth,img_height:image.naturalHeight};
                 const group = {group_id:id,num_imgs:1,img_width:image.naturalWidth,img_height:image.naturalHeight,
                     imgs:[{image_url:result,description:'Upscaled image',done_percentage:100,params}]};
                 this.$refs.gallery.add_group(group);
                 this.app.functions.add_to_history(id, group);
+                this.app.stable_diffusion.run_outcome = 'Complete';
             } catch (error) {
-                this.app.show_toast('Could not upscale the image. ' + error.message);
-            } finally { this.is_running = false; }
+                this.app.stable_diffusion.run_outcome = 'Failed';
+                if (!this.app.stable_diffusion.is_stopping) this.app.show_toast('Could not upscale the image. ' + error.message);
+            } finally { this.is_running = false; this.app.stable_diffusion.pending_result = null; await this.app.stable_diffusion.state_msg('inrd'); }
         }
 
     },

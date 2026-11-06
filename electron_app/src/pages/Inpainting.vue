@@ -77,6 +77,7 @@
 </template>
 
 <script>
+import {save_image_data} from "../native_functions_vue_bridge.js"
 import {export_image, image_export_format} from '../utils/image_export.js'
 import {tool_models} from '../utils/model_details.js'
 import GenerationStatus from "../components/GenerationStatus.vue"
@@ -211,6 +212,7 @@ const Inpainting = {
             this.is_post_generate_box_showing = false;
         },
         generate(is_retry){
+            try {
 
             if(!this.is_sd_active || (this.is_post_generate_box_showing && !is_retry))
                 return;
@@ -253,13 +255,13 @@ const Inpainting = {
                 
             } else {
                 let box_img_b64 = this.$refs.inp_img_canvas.get_img_b64();
-                img_url = window.ipcRenderer.sendSync('save_b64_image',  box_img_b64 , true );
+                img_url = save_image_data(box_img_b64, true);
 
 
                 const editor = this.$refs.inp_img_canvas;
                 const prepared = prepare_inpaint_crop(editor.canvasD, editor.canvas, this.working_resolution, this.model_resolution, this.retouch, this.minimum_edit_resolution);
-                generation_input = window.ipcRenderer.sendSync('save_b64_image', prepared.image, true);
-                img_mask_url = window.ipcRenderer.sendSync('save_b64_image', prepared.mask, true);
+                generation_input = save_image_data(prepared.image, true);
+                img_mask_url = save_image_data(prepared.mask, true);
                 this.retry_params.crop = prepared.crop;
                 this.retry_params.content = prepared.content;
                 this.retry_params.width = prepared.width;
@@ -299,7 +301,7 @@ const Inpainting = {
                     try {
                         const composite = await composite_inpaint(img_url, that.retry_mask_cached, img_path.generated_img_path,
                             that.retry_params.crop, !that.retry_params.retouch, that.retry_params.content);
-                        const saved = window.ipcRenderer.sendSync('save_b64_image', composite);
+                        const saved = save_image_data(composite);
                         if (!saved || saved === 'NULL') throw new Error('Could not save the edited image.');
                         const size = that.$refs.inp_img_canvas.get_size();
                         that.completed_edit = {image_url: saved, done_percentage: 100,
@@ -326,6 +328,7 @@ const Inpainting = {
             }
                 
             this.stable_diffusion.text_to_img(sd_options_object, callbacks, 'Inpainting');
+            } catch (error) { this.backend_error = error.message; this.app.show_toast(error.message); }
            
         }, 
 

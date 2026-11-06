@@ -29,7 +29,7 @@ async function run(root){
  window.ipcRenderer=require('electron').ipcRenderer;
  const source=require(path.join(root,'node_modules/@vue/compiler-sfc')).parse(fs.readFileSync(path.join(root,'src/pages/History.vue'),'utf8')).descriptor;
  let confirmDelete=true;const confirmations=[];
- const component=new Function('GalleryPane','image_manu_functions','migrate_history_only_once','native_confirm','Fuse',source.script.content.replace(/^import .*$/gm,'').split('export default History;')[0]+';return History;')({template:'<div/>'},{},()=>({}),message=>{confirmations.push(message);return confirmDelete;},require(path.join(root,'node_modules/fuse.js')));
+ const component=new Function('GalleryPane','image_manu_functions','migrate_history_only_once','native_confirm','Fuse','image_source_url',source.script.content.replace(/^import .*$/gm,'').split('export default History;')[0]+';return History;')({template:'<div/>'},{},()=>({}),message=>{confirmations.push(message);return confirmDelete;},require(path.join(root,'node_modules/fuse.js')),source=>source);
  // Render the actual history list without unrelated gallery/menu dependencies.
  component.template='<div><div v-for="item in history_to_show" :key="item.key">{{item.prompt}}</div></div>';
  const errors=[],app={functions:{},app_state:{},show_toast:e=>errors.push(e)};

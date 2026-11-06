@@ -107,9 +107,10 @@ export default {
                     } else {
                         cb("error" , result.error)
                     }
-                })
+                }).catch(error => cb('error', error.message));
             } else {
                  that.local_assets[asset_id] = asset_details
+                 cb('success', asset_details);
             }
 
 
@@ -200,9 +201,12 @@ export default {
 
                             } else {
                                 that.downloading[asset_id]['status'] = 'error'
-                                that.downloading[asset_id]['error'] = result.error.slice(-30)
+                                that.downloading[asset_id]['error'] = (result.error || 'Model conversion failed.').slice(-500)
                             }
-                        })
+                        }).catch(error => {
+                            that.downloading[asset_id].status = 'error';
+                            that.downloading[asset_id].error = error.message;
+                        });
                 } else {
                     asset_details.asset_path = asset_details.asset_path_raw
                     that.downloading[asset_id]['status'] = 'done'

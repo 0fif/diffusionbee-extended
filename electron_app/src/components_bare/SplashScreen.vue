@@ -2,7 +2,10 @@
 <template>
     <div class="splash_screen">
         <Transition name="fade">
-            <img class="logo_splash_screen" v-if=show width="60%">
+            <picture v-if="show">
+                <source :srcset="require('../assets/logo_splash_dark.png')" media="(prefers-color-scheme: dark)">
+                <img :src="require('../assets/logo_splash.png')" alt="DiffusionBee Extended" width="60%">
+            </picture>
         </Transition>
     </div>
 </template>

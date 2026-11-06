@@ -76,7 +76,7 @@ export default {
 
             if(msg_code == "nwim" && !this.is_stopping){
                 if (this.$parent.app_state.app_data.settings.notification_sound == true) {
-                    notification_sound.play();
+                    Promise.resolve(notification_sound.play()).catch(() => {});
                 }
                 let img = msg.substring(5).trim()
                 img = JSON.parse(img)
@@ -178,7 +178,8 @@ export default {
             this.generation_state_msg = 'Stopping…';
             this.remaining_times = '';
             this.attached_cbs = undefined;
-            send_to_py("t2im __stop__");
+            if (this.active_engine === 'upscale') window.ipcRenderer.invoke('cancel-upscale');
+            else send_to_py("t2im __stop__");
         },
 
         is_ready(){

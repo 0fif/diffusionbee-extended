@@ -81,8 +81,10 @@ export default {
                 return
             }
             
-            let sd_options_object = this.get_sd_form_outputs()
-            this.app.stable_diffusion_manager.add_job(sd_options_object, this.sd_options  ,  this.$refs.gallery)
+            try {
+                const options = this.get_sd_form_outputs();
+                this.app.stable_diffusion_manager.add_job(options, this.sd_options, this.$refs.gallery);
+            } catch (error) { this.app.show_toast(error.message); }
         }, 
 
         get_sd_form_outputs(){

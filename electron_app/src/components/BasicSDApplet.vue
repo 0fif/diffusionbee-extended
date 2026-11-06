@@ -29,6 +29,7 @@
     </TwoColAppletLayout>
 </template>
 <script>
+import {save_image_data} from "../native_functions_vue_bridge.js"
 
 import Form from "../components_bare/Form.vue"
 import TwoColAppletLayout from "../components_bare/TwoColAppletLayout.vue"
@@ -42,14 +43,9 @@ function prep_sd_options(options){
     options = JSON.parse(JSON.stringify(options))
 
 
-    if(options.seed)
-        options.seed = Number(options.seed);
-    else if(options.seed != undefined)
-        options.seed = Math.floor(Math.random() * 100000);
-
-    if(options.seed < 0){
-        options.seed = Math.floor(Math.random() * 100000);
-    }
+    const seed = options.seed;
+    options.seed = seed === undefined || seed === '' || !Number.isFinite(Number(seed)) || Number(seed) < 0
+        ? Math.floor(Math.random() * 2147483647) : Number(seed);
 
     return options
 }
@@ -138,13 +134,13 @@ export default {
                 if(this.get_mask_b64){
                     let mask_b64 = this.get_mask_b64()
                     if(mask_b64){
-                        options.mask_image = (window.ipcRenderer.sendSync('save_b64_image',  mask_b64 , true ))
+                        options.mask_image = (save_image_data(mask_b64, true))
                     }
                 }
                 if(this.get_mask_img_b64){
                     let mask_img_b64 = this.get_mask_img_b64()
                     if(mask_img_b64){
-                        options.input_image_with_mask =  (window.ipcRenderer.sendSync('save_b64_image',  mask_img_b64  ))
+                        options.input_image_with_mask =  (save_image_data(mask_img_b64))
                     }
                 }
             }
@@ -168,8 +164,17 @@ export default {
                 return false;
             } 
 
-            if( this.get_sd_form_outputs().prompt != undefined && this.get_sd_form_outputs().prompt.trim() == ""){
-                console.log(this.get_sd_form_outputs())
+            let outputs;
+            try { outputs = this.get_sd_form_outputs(); }
+            catch (error) { this.app.show_toast(error.message); return false; }
+            for (const key of ['num_imgs', 'num_steps']) {
+                if (outputs[key] !== undefined && (!Number.isInteger(Number(outputs[key])) || Number(outputs[key]) < 1)) {
+                    this.app.show_toast(key === 'num_imgs' ? 'Choose a positive image count.' : 'Choose a positive number of steps.');
+                    return false;
+                }
+            }
+            if( outputs.prompt != undefined && outputs.prompt.trim() == ""){
+                console.log(outputs)
                 this.app.show_toast('You need to enter a prompt')
                 return false;
             }

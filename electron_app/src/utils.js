@@ -95,17 +95,17 @@ async function share_on_arthub(imgs , params,  prompt ) {
     params = JSON.parse(JSON.stringify(params))
 
 
-    share_url += "description="+ prompt + "&";
+    share_url += "description="+ encodeURIComponent(prompt || '') + "&";
     if(!params.model_version)
         params.model_version = ""
     params.model_version = "DiffusionBee" + params.model_version + (params.Model? "_"+params.Model : "") ;
-    share_url += "params="+ JSON.stringify(params) + "&"
-    share_url += "images="+ urls.join(',')
+    share_url += "params="+ encodeURIComponent(JSON.stringify(params)) + "&"
+    share_url += "images="+ encodeURIComponent(urls.join(','))
     window.ipcRenderer.sendSync('open_url', share_url );
 }
 
 
-function form_params_to_readable_dict(form_params){
+function form_params_to_readable_dict(form_params = {}){
 
     let r = {};
     let vals = {"seed" : "Seed" , "guidence_scale" : "Scale" , "num_steps":"Steps"  ,  "steps":"Steps"  ,  "guidance_scale": "Guidance Scale",
@@ -255,8 +255,14 @@ function migrate_history_only_once( current_new_history ){
     }
 
     
+    // Commit the migrated entries before recording completion. A failed write
+    // must leave migration retryable on the next launch.
+    if (Object.keys(new_history).length && window.ipcRenderer.sendSync('save_data',
+        {history: {...current_new_history, ...new_history}}, 'history.json') !== true)
+        throw new Error('Could not save migrated History. Migration will retry next launch.');
     v.is_history_migrated = true;
-    window.ipcRenderer.sendSync('save_data', v , "migration_data.json");
+    if (window.ipcRenderer.sendSync('save_data', v, 'migration_data.json') !== true)
+        throw new Error('Could not record History migration. Migration will retry next launch.');
 
 
     return new_history;

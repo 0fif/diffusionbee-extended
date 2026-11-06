@@ -108,6 +108,7 @@ npm run test:export
 npm run test:legacy
 npm run test:preload
 npm run test:runtime
+npm run test:audit
 ```
 
 Report bugs and feature requests in [this fork's issue tracker](https://github.com/0fif/diffusionbee-extended/issues). Include the app version, macOS version, Mac/chip, selected model, tool, and steps to reproduce. Remove personal prompts, images, and paths from logs before sharing them. Please direct Extended-specific issues here rather than to the original developer.

@@ -1,6 +1,7 @@
 // UI support ported from the official 2.5.3 frontend; see docs/RELEASE_SOURCE.md.
 function model_available(model, backend) {
     if (model.model_meta_data?.engine === 'mflux') return !!backend?.mflux;
+    if (backend?.legacy_error) return false;
     const minimum = Number(model.min_version || 0);
     if (minimum <= 29) return true;
     const type = (model.model_meta_data || {}).type;

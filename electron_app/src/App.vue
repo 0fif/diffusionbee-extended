@@ -72,7 +72,7 @@ export default
 
     mounted() {
         this.app = this;
-        window.ipcRenderer.invoke('backend_info').then(info => { this.backend_info = {...info, mflux:!!this.modern_backend.available}; })
+        window.ipcRenderer.invoke('backend_info').then(info => { this.backend_info = {...info, mflux:!!this.modern_backend.available, legacy_error:this.app_state.legacy_backend_error}; })
             .catch(err => console.warn('Backend identity unavailable:', err.message));
         window.app = this.app; // so that we can access from console
         this.stable_diffusion = this.$refs.stable_diffusion;
@@ -117,6 +117,7 @@ export default
     },
 
     watch: {
+        'app_state.legacy_backend_error'(error) { this.backend_info.legacy_error = error; },
         'app_state.is_start_screen': {
 
             handler: function(new_value) {
@@ -175,7 +176,7 @@ export default
                         delete this.assets_manager.local_assets[id];
                 }
                 for (const model of installed) this.assets_manager.local_assets[model.id] = {...model,is_locally_imported:true};
-            } catch (error) {this.modern_backend = {available:false, models:[],error:error.message};}
+            } catch (error) {this.modern_backend = {available:false, models:[],error:error.message};this.backend_info.mflux = false;}
         },
 
         main_screen() {
@@ -221,6 +222,7 @@ export default
             show_dialog_on_quit_msg : "" ,  // the message to show while quiting 
             show_splash_screen : true , // is showing the loading splash screen
             logs : "",
+            legacy_backend_error: '',
 
             global_loader_modal_msg : "",
             registered_ext_applets : {}, // {id, title, desc, icon, inputs, outputs }

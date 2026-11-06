@@ -50,7 +50,7 @@ ipcMain.handle('backend_info', () => {
 ipcMain.on('save_dialog', (event, ...args) => {
 
     const filename = args[0] ? args[0] : "Untitled"
-    const ext = args[1] ? args[1] : "png"
+    const ext = (args[1] || 'png').replace(/^\./, '')
    
     let trimmedFilename = filename.substring(0, 254) // filename size limit
      let save_path = dialog.showSaveDialogSync({
@@ -174,9 +174,8 @@ ipcMain.on('save_encoded_image', (event, destination, encoded) => {
     }
 });
 
-ipcMain.on('save_file', (event, arg) => {
-    let p1 = arg.split("||")[0];
-    let p2 = arg.split("||")[1];
+ipcMain.on('save_file', (event, source, destination) => {
+    const [p1, p2] = destination === undefined ? source.split('||') : [source, destination];
     try {
         require('fs').copyFileSync(p1, p2);
         event.returnValue = true;
@@ -305,7 +304,7 @@ ipcMain.on('show_about', (event, arg) => {
         if(is_windows)
         {
             let about_content = require('../package.json').productName + "\n" + "Version " + require('../package.json').version + " (" + require('../package.json').build_number + ")\n" + require('../package.json').description;
-            const choice = require('electron').dialog.showMessageBoxSync(this, {
+            require('electron').dialog.showMessageBoxSync(win, {
                 buttons: ['Okay'],
                 title: require('../package.json').productName ,
                 message: about_content
@@ -356,7 +355,7 @@ ipcMain.on('native_alert', (event, arg) => {
 
     if (win) {
         
-        const choice = require('electron').dialog.showMessageBoxSync(this, {
+        require('electron').dialog.showMessageBoxSync(win, {
             buttons: ['Okay'],
             title: require('../package.json').productName ,
             message: arg
@@ -371,41 +370,20 @@ ipcMain.on('native_alert', (event, arg) => {
 
 
 
-ipcMain.on('save_b64_image', (event, b64_str, save_to_tmp ) => {
-
-    const path = require('path');
+ipcMain.on('save_b64_image', (event, encoded, temporary) => {
     const fs = require('fs');
-
-    let base64Data = b64_str.replace(/^data:image\/png;base64,/, "");
-    
-    const homedir = require('os').homedir();
-    let save_dir = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee'))
-
-
-    if (!fs.existsSync(save_dir)){
-        fs.mkdirSync(save_dir, { recursive: true });
+    try {
+        if (typeof encoded !== 'string' || !encoded.startsWith('data:image/png;base64,')) throw Error('Expected a PNG image.');
+        const directory = temporary ? require('os').tmpdir() : path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(require('os').homedir(), '.diffusionbee'), 'inp_images');
+        fs.mkdirSync(directory, {recursive:true});
+        const filename = path.join(directory, require('crypto').randomUUID() + '.png');
+        fs.writeFileSync(filename, Buffer.from(encoded.slice('data:image/png;base64,'.length), 'base64'));
+        event.returnValue = filename;
+    } catch (error) {
+        console.error('Could not save image data:', error.message);
+        event.returnValue = null;
     }
-
-    if(save_to_tmp){
-        save_dir = "/tmp/"
-    } else {
-        save_dir = path.join(save_dir , "inp_images")
-    }
-
-    
-
-    if (!fs.existsSync(save_dir)){
-        fs.mkdirSync(save_dir, { recursive: true });
-    }
-
-    let p = require('path').join(save_dir,  Math.random().toString()+".png");
-
-    require("fs").writeFileSync(p , base64Data, 'base64'); 
-    
-    event.returnValue = p ;
-
-})
-
+});
 
 
 function save_json(data , fname ){
@@ -420,6 +398,12 @@ function save_json(data , fname ){
     }
 
     let data_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , fname )
+    // Preserve damaged data before a later successful save replaces it.
+    if (fs.existsSync(data_path)) {
+        const existing = fs.readFileSync(data_path, 'utf8');
+        try { JSON.parse(existing); }
+        catch (_) { fs.copyFileSync(data_path, data_path + '.corrupt-' + require('crypto').randomBytes(8).toString('hex')); }
+    }
     const temporary = data_path + '.' + require('crypto').randomBytes(8).toString('hex') + '.tmp';
     try {
         fs.writeFileSync(temporary, JSON.stringify(data));
@@ -483,88 +467,21 @@ ipcMain.on('delete_file', (event, fpath) => {
 })
 
 
-function add_custom_pytorch_models(pytorch_model_path, model_name, convert_params , cb ){
-    
-    const path = require('path');
+function add_custom_pytorch_models(source, name, cleanup) {
     const fs = require('fs');
-    const homedir = require('os').homedir();
-    let models_path = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "imported_models");
-
-    if (!fs.existsSync(models_path)){
-        fs.mkdirSync(models_path, { recursive: true });
-    }
-
-
-    let script_path = process.env.PY_SCRIPT || "../backends/stable_diffusion/diffusionbee_backend.py"; 
-    
-    let out_path =  path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(homedir, '.diffusionbee') , "imported_models" , model_name+".tdict" );
-    let proc;
-    if (process.env.BIN_PATH) {
-        proc = require('child_process').spawn(process.env.BIN_PATH, ['convert_model', pytorch_model_path, out_path]);
-    } else if (fs.existsSync(script_path)) {
-        proc = require('child_process').spawn( "python3"  , [ script_path ,  "convert_model" ,  pytorch_model_path , out_path ]);
-    } else {
-        let bin_path =  path.join(process.resourcesPath, 'core' , 'diffusionbee_backend' );
-        proc = require('child_process').spawn( bin_path  , [ "convert_model" ,  pytorch_model_path , out_path ]);
-    }
-    
-
-    
-    let errors = ""
-    let std_out_all = ""
-
-    proc.stderr.on('data', (data) => {
-        console.error(`sr stderr: ${data}`);
-        errors += data
-    });
-
-    proc.stdout.on('data', (data) => {
-        console.error(`sr sdtout: ${data}`);
-        std_out_all += data
-    });
-
-    proc.on('close', (code) => {
-
-        if(convert_params.delete_origional_always){
-            try{
-                fs.unlinkSync(pytorch_model_path);
-            } catch {}
-        }
-
-        if(code != 0){
-            cb({success:false , error:errors  })
-            try{
-                fs.unlinkSync(out_path);
-            } catch {}
-        }
-        else{
-            if(convert_params.delete_origional_on_success){
-                try{
-                    fs.unlinkSync(pytorch_model_path);
-                } catch {}
-            }
-
-            let converted_model_data = {}
-            for(let l of std_out_all.split("\n")){
-                if(l.includes("__converted_model_data__")){
-                    converted_model_data = JSON.parse(l.replace( "__converted_model_data__", "") )
-                }
-            }
-
-            cb({success:true, model_path:out_path , metadata : converted_model_data })
-        }
-       
-    });
+    const script = process.env.PY_SCRIPT || '../backends/stable_diffusion/diffusionbee_backend.py';
+    const binary = process.env.BIN_PATH || ((!app.isPackaged && fs.existsSync(script)) ? 'python3' : path.join(process.resourcesPath, 'core', 'diffusionbee_backend'));
+    const args = !process.env.BIN_PATH && (!app.isPackaged && fs.existsSync(script)) ? [script] : [];
+    const directory = path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(require('os').homedir(), '.diffusionbee'), 'imported_models');
+    return require('./convert_model.cjs').convertModel({binary, args, source, name, directory, cleanup});
 }
 
+ipcMain.handle('add_custom_pytorch_models', async (_event, source, name, cleanup) => {
+    try { return await add_custom_pytorch_models(source, name, cleanup); }
+    catch (error) { return {success:false, error:(error.stderr || error.message).slice(-2000)}; }
+});
 
-ipcMain.handle('add_custom_pytorch_models', async (event, pytorch_model_path, model_name, convert_params ) => {
-    const result = await new Promise(resolve => add_custom_pytorch_models( pytorch_model_path, model_name , convert_params , resolve));
-    return result
-})
-
-
-
+ipcMain.handle('cancel-upscale', () => require('./upscale.cjs').cancel());
 ipcMain.handle('run_realesrgan', (_event, input) => {
     const binary = process.env.REALESRGAN_BIN || path.join(process.resourcesPath, 'core', 'realesrgan_ncnn_macos');
     return require('./upscale.cjs').runUpscale(input, binary, path.join(process.env.DIFFUSIONBEE_DATA_DIR || path.join(require('os').homedir(), '.diffusionbee'), 'images'));

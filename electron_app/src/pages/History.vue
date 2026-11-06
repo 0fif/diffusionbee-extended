@@ -58,7 +58,7 @@
 
                     
                     <p class="history_box_info " style="user-select: text;">
-                        <img  v-for=" img in get_inp_imgs_from_group(group)" :src="'file://' +img" :key="img" style="height:50px">
+                        <img  v-for=" img in get_inp_imgs_from_group(group)" :src="image_source_url(img)" :key="img" style="height:50px">
                         <br  v-if="get_inp_imgs_from_group(group).length > 0 " >
                         <br  v-if="get_inp_imgs_from_group(group).length > 0 " >
                   
@@ -66,7 +66,7 @@
                         <br   v-if="get_box_params_str(group)">
                         
                         <span v-if="group.recovered">Recovered image · {{new Date(group.recovered_at).toLocaleDateString()}}<br></span>
-                        {{group.params.prompt || (group.recovered ? 'Original prompt unavailable' : group.params.applet_name === 'upscale' ? 'Upscaled image' : '')}}
+                        {{(group.params || {}).prompt || (group.recovered ? 'Original prompt unavailable' : (group.params || {}).applet_name === 'upscale' ? 'Upscaled image' : '')}}
 
 
                     </p>
@@ -99,6 +99,7 @@ import GalleryPane from "../components_bare/GalleryPane.vue"
 import {image_manu_functions} from "../components/image_menu_functions.js"
 import {open_popup , form_params_to_text , form_params_to_readable_dict, migrate_history_only_once} from "../utils"
 
+import {image_source_url} from '../utils/image_export.js'
 import Fuse from 'fuse.js'
 
 const History =  {
@@ -149,6 +150,9 @@ const History =  {
         };
     },
 
+    watch: {
+        'history_to_show.length'(length) { this.currentPage = Math.min(this.currentPage, Math.max(1, Math.ceil(length / 30))); }
+    },
     computed: {
       history_to_show() {
           let history = Object.values(this.history);
@@ -168,7 +172,7 @@ const History =  {
        },
     },
 
-    methods: {
+    methods: {image_source_url,
 
 
         get_inp_imgs_from_group(group){
@@ -193,7 +197,7 @@ const History =  {
             history_vals.imgs = (history_vals.imgs || []).filter(img => img.image_url && img.image_url !== 'ERROR');
             if(history_vals.imgs.length == 0) return false;
             history_vals.num_imgs = history_vals.imgs.length;
-            history_vals.params = history_vals.imgs[0].params
+            history_vals.params = history_vals.imgs[0].params || {}
             history_vals.key = k
             history_vals.prompt = history_vals.params.prompt
             return this.save_history({...this.history, [k]: history_vals});
@@ -241,6 +245,7 @@ const History =  {
         },
 
         share_on_arthub(box){
+            if (!native_confirm('Upload these images to an external sharing service and open ArtHub?')) return;
             this.app.app_state.global_loader_modal_msg = "Uploading";
             let params = form_params_to_readable_dict(box.params);
             let that = this;

@@ -17,15 +17,6 @@ image_manu_functions['send_img_2_img'] =  function (app, image_item_data){
 }
 image_manu_functions['send_img_2_img'].text = "Send to Img2Img"
 
-image_manu_functions['send_outpaint'] =  function (app, image_item_data){
-
-	app.functions.send_to_outpaint( image_item_data.image_url )
-	
-}
-image_manu_functions['send_outpaint'].text = "Send to AI Canvas"
-
-
-
 image_manu_functions['send_inpaint'] =  function (app, image_item_data){
 
 	app.functions.send_to_inpaint(image_item_data.image_url, image_item_data.params?.export_format)
@@ -37,7 +28,7 @@ image_manu_functions['send_inpaint'].text = "Send to Inpainting"
 
 image_manu_functions['send_img_2_img_with_params'] =  function (app, image_item_data){
 
-	let image_params = JSON.parse(JSON.stringify(image_item_data.params))
+	let image_params = JSON.parse(JSON.stringify(image_item_data.params || {}))
 	app.functions.send_to_img2img( image_item_data.image_url , image_params )
 	
 }
@@ -47,7 +38,7 @@ image_manu_functions['send_img_2_img_with_params'].text = "Send to Img2Img with 
 
 image_manu_functions['use_params_current_page'] =  function (app, image_item_data){
 	
-	let image_params = JSON.parse(JSON.stringify(image_item_data.params))
+	let image_params = JSON.parse(JSON.stringify(image_item_data.params || {}))
 
 	let router = app.$refs.router 
 	let cur_page_id = router.current_open_page_id 
@@ -65,7 +56,7 @@ image_manu_functions['copy_params'] =  function (app, image_item_data){
 	const remove_keys = ['generated_img', 'done_percentage', 'prompt_tokens' , 
 	'job_state', 'job_id', "raw_form_options" ,  'negative_prompt_tokens' ,"input_image_with_mask" , "model_tdict_path" ,
 	"controlnet_tdict_path" , "controlnet_inp_img_preprocesser_model_path" , "aux_output_img" ]
-	let image_params = JSON.parse(JSON.stringify(image_item_data.params))
+	let image_params = JSON.parse(JSON.stringify(image_item_data.params || {}))
 	for(let k of remove_keys)
 		image_params[k] = undefined;
 	window.ipcRenderer.sendSync('copy_to_clipboard' ,  JSON.stringify(image_params , null, 4))

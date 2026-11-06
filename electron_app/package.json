@@ -31,29 +31,29 @@
     "package:local": "vue-cli-service electron:build --mac --arm64 --dir --publish never",
     "test:runtime": "node tests/runtime-paths.cjs",
     "package:release": "EXTENDED_RELEASE=1 vue-cli-service electron:build --mac --arm64 --publish never",
-    "test:navigation": "electron tests/navigation.cjs"
+    "test:navigation": "electron tests/navigation.cjs",
+    "test:audit": "node tests/audit.cjs"
   },
   "main": "background.js",
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.36",
     "@fortawesome/free-solid-svg-icons": "^5.15.4",
     "@fortawesome/vue-fontawesome": "3.3.3",
     "bootstrap": "^5.3.8",
+    "bootstrap-vue-next": "1.2.2",
     "core-js": "^3.8.3",
     "electron-context-menu": "^3.5.0",
     "electron-localshortcut": "^3.2.1",
-    "electron-settings": "^4.0.2",
+    "electron-settings": "4.0.4",
     "fuse.js": "^6.6.2",
     "javascript-time-ago": "^2.3.13",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "4.3.2",
     "konva": "^8.3.13",
-    "nsfwjs": "^2.4.2",
     "path": "^0.12.7",
     "stream": "^0.0.2",
     "vue": "3.5.44",
     "vue-spinner": "^1.0.4",
-    "vue-toast-notification": "3.1.3",
-    "bootstrap-vue-next": "1.2.2",
-    "@fortawesome/fontawesome-svg-core": "^1.2.36"
+    "vue-toast-notification": "3.1.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -61,15 +61,15 @@
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "@vue/compiler-sfc": "3.5.44",
     "babel-eslint": "^10.1.0",
     "electron": "45.2.2",
     "electron-builder": "^23.3.3",
     "electron-devtools-installer": "^3.1.0",
+    "electron-osx-sign": "0.6.0",
     "eslint": "^7.32.0",
     "eslint-plugin-vue": "^8.0.3",
-    "vue-cli-plugin-electron-builder": "^2.1.1",
-    "@vue/compiler-sfc": "3.5.44",
-    "electron-osx-sign": "0.6.0"
+    "vue-cli-plugin-electron-builder": "^2.1.1"
   },
   "eslintConfig": {
     "root": true,

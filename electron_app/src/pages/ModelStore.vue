@@ -164,6 +164,7 @@ const ModelStore ={
             return normalize(description) === normalize(model.title || model.id) ? '' : description;
         },
         support_text(model){
+            if (!this.is_modern(model) && this.app.backend_info?.legacy_error) return 'Legacy engine unavailable. Restart the app to try again.';
             if (!model_available(model,this.app.backend_info)) return this.is_modern(model) ? 'Requires an available MFLUX engine.' :
                 `Requires a supported DiffusionBee backend (catalog minimum build ${model.min_version || 29}; active build ${this.app.backend_info?.build || 'unknown'}).`;
             if (this.is_modern(model)) return model.model_meta_data?.mask_mode === 'native'
@@ -234,16 +235,18 @@ const ModelStore ={
         load_models_list_from_web(){
             let that = this;
 
-            let user_id = window.ipcRenderer.sendSync('get_instance_id' , '');
             this.catalog_error = '';
-            let models_url = "https://models.diffusionbee.com/list_models?user_id="+user_id;
+            let models_url = "https://models.diffusionbee.com/list_models";
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
 
-            return fetch(models_url, {cache: "no-store"})
+            return fetch(models_url, {cache: "no-store", signal:controller.signal})
                 .then(response => { if (!response.ok) throw new Error('catalog unavailable'); return response.json(); })
                 .then(data => { if (!Array.isArray(data)) throw new Error('invalid catalog'); that.models_list = data; })
                 .then(() => console.log(that.models_list))
                 .then(() => that.save_models_list_local_storage())
                 .catch(() => { that.catalog_error = 'Could not refresh models. Check your connection and try Refresh.'; })
+                .finally(() => clearTimeout(timeout))
 
 
         } ,

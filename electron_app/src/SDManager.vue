@@ -50,7 +50,7 @@ export default {
                 gen_options['job_state'] = "todo";
                 gen_options['num_imgs'] = 1 
 
-                if((!gen_options['seed']) || gen_options['seed'] < 0 ){
+                if(gen_options.seed === undefined || gen_options.seed === '' || !Number.isFinite(Number(gen_options.seed)) || gen_options.seed < 0){
                     gen_options['seed'] = Math.floor(Math.random()*1000000)
                 }
 
@@ -113,6 +113,7 @@ export default {
 
                 gallery.update_group( gallery_group  )
 
+                delete this.group_gallery_mapping[current_group_id];
                 this.current_group_id = undefined;
                 this.queue.current_group = undefined;
 
@@ -196,6 +197,7 @@ export default {
 
                 },
                 on_err(err){
+                    if (!that.queue.current_group || that.current_job_index === undefined) return;
                     console.log("errorrr ")
                     that.queue.current_group.jobs[that.current_job_index].generated_img = "ERROR" ;
                     that.queue.current_group.jobs[that.current_job_index].job_state = "done";
@@ -261,6 +263,7 @@ export default {
 
 
         stop_all(){
+            if (this.stable_diffusion.pending_result) return;
             if(this.queue.current_group != undefined &&    this.current_job_index != undefined){
                 console.log("jjj1")
                 for(let job of this.queue.current_group.jobs  ){
@@ -273,6 +276,7 @@ export default {
             for(let group of this.queue.groups_todo){
                 let gallery = this.group_gallery_mapping[group.group_id];
                 gallery.delete_group(group.group_id)
+                delete this.group_gallery_mapping[group.group_id];
             }
             this.queue['groups_todo'] = []
 

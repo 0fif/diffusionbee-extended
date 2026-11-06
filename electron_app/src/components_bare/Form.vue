@@ -89,7 +89,7 @@ export default {
                 elements = this.form_data;
             }
             for( let form_el of elements){
-                if( this.form_values[form_el.id] != undefined  && form_el.default_value ){
+                if( this.form_values[form_el.id] != undefined  && form_el.default_value !== undefined ){
                     this.form_values[form_el.id] = form_el.default_value
                 } else if(this.form_values[form_el.id] != undefined){
                     this.form_values[form_el.id] = ""
@@ -137,7 +137,9 @@ export default {
             for(let form_el of elements){
                 if(this.form_values[form_el.id] != undefined){
                     if(form_el.output_type){
-                        if(form_el.output_type == 'int'){
+                        if (['int','float'].includes(form_el.output_type) && (this.form_values[form_el.id] === '' || this.form_values[form_el.id] === null)) {
+                            ret[form_el.id] = '';
+                        } else if(form_el.output_type == 'int'){
                             ret[form_el.id] = Math.round(Number(this.form_values[form_el.id]))
                         } else if(form_el.output_type == 'float'){
                             ret[form_el.id] = Number(this.form_values[form_el.id])

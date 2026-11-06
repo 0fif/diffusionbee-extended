@@ -29,7 +29,7 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
                 settled = true; clearTimeout(killTimer);
                 error ? reject(error) : resolve(value);
             };
-            child = spawnProcess(python, ['-u', runner, command], {env:{...process.env, PYTHONUNBUFFERED:'1', PYTHONDONTWRITEBYTECODE:'1'}});
+            child = spawnProcess(python, ['-u', runner, command], {env:{...process.env, PYTHONUNBUFFERED:'1', PYTHONDONTWRITEBYTECODE:'1', PYTHONNOUSERSITE:'1'}});
             child.on('error', error => finish(new Error('Could not start MFLUX: ' + error.message)));
             child.stdin.on('error', () => {});
             child.stdin.end(JSON.stringify({...request, models_dir:modelsDir, output_dir:outputDir}));
@@ -54,9 +54,11 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
                 else finish(null, result);
             });
         });
-        return {promise, cancel() {
-            if (settled || cancelled) return;
-            cancelled = true; child.kill('SIGTERM');
+        return {promise, cancel(force = false) {
+            if (settled || (cancelled && !force)) return;
+            clearTimeout(killTimer);
+            cancelled = true; child.kill(force ? 'SIGKILL' : 'SIGTERM');
+            if (force) return;
             killTimer = setTimeout(() => child.kill('SIGKILL'), 3000); killTimer.unref();
         }};
     }
@@ -117,10 +119,11 @@ function createMfluxEngine({runner, python, modelsDir, outputDir, emit, spawnPro
         const entry = model(id);
         if (generation || installation) throw new Error('Wait for the active model job to finish.');
         const directory = path.join(modelsDir, entry.id);
+        if (!fs.existsSync(directory)) return;
         if (fs.lstatSync(directory).isSymbolicLink()) throw new Error('Remove linked models from their original location.');
         fs.rmSync(directory, {recursive:true, force:true});
     }
     return {status, install, metadata, handle, remove, get busy(){return !!generation;},
-        cancelInstall(){if (installation) installation.cancel();}, close(){if (generation) generation.cancel();if (installation) installation.cancel();}};
+        cancelInstall(){if (installation) installation.cancel();}, close(){if (generation) generation.cancel(true);if (installation) installation.cancel(true);}};
 }
 module.exports = {createMfluxEngine};

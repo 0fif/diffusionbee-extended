@@ -36,7 +36,7 @@ Menu.setApplicationMenu(Menu.buildFromTemplate(menu_template))
 
 
 function save_window_size() {
-	if( ! win.savable )
+	if( !win || !win.savable )
 		return;
 	let windowState = win.getBounds();
 	windowState.isMaximized = win.isMaximized();
@@ -70,6 +70,8 @@ async function createWindow() {
 		}
 	});
 
+    bind_window_bridge(win);
+    bind_window_native_functions(win);
     win.webContents.setWindowOpenHandler(() => ({action:'deny'}));
     win.webContents.on('will-navigate', (event, url) => {
         const expected = process.env.WEBPACK_DEV_SERVER_URL || 'app://./index.html';
@@ -77,6 +79,7 @@ async function createWindow() {
     });
     win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
 
+	win.on('closed', () => { win = null; app.quit(); });
 	win.removeMenu(); // remove the menu ( works for windows! )
 
 	electronLocalshortcut.register(win, ['CommandOrControl+R','CommandOrControl+Shift+R', 'F5'], () => {}) //  make the refresh shortcuts blank
@@ -102,6 +105,7 @@ async function createWindow() {
 			const choice = require('electron').dialog.showMessageBoxSync(this, {
 				type: 'question',
 				buttons: ['Yes', 'No'],
+                defaultId: 1, cancelId: 1,
 				title: 'Confirm',
 				message: message
 			});
@@ -154,14 +158,6 @@ app.on('ready', async () => {
 		}
 	}
 	createWindow();
-
-	console.log(win);
-	bind_window_bridge(win);
-
-	win.webContents.on('did-finish-load', function() {
-
-		bind_window_native_functions(win);
-	});
 
 })
 

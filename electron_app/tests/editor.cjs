@@ -245,9 +245,10 @@ async function run(root) {
   const compositeSource = fs.readFileSync(path.join(root, 'src/utils/composite_inpaint.js'), 'utf8');
   const compositeFunctions = new Function(compositeSource.replace(/export /g, '') + '; return {composite_inpaint, prepare_inpaint_crop};')();
   const exportHelpers=new Function(fs.readFileSync(path.join(root,'src/utils/image_export.js'),'utf8').replace(/export /g,'')+';return {export_image,image_export_format};')();
-  const page = new Function('export_image','image_export_format','GenerationStatus', 'composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
+  const page = new Function('save_image_data','export_image','image_export_format','GenerationStatus', 'composite_inpaint', 'prepare_inpaint_crop', 'require', 'ImageCanvas', 'BasicSDApplet', 'LoaderModal',
     'find_in_form_recursive', 'inpaint_assets', 'prep_sd_optins', 'tool_models',
     pageSource.script.content.replace(/^import .*$/gm, '').replace('export default Inpainting;', 'return Inpainting;'))(
+    (encoded,temporary=false)=>{const file=window.ipcRenderer.sendSync('save_b64_image',encoded,temporary);if(!file)throw Error('Could not save image data.');return file;},
       exportHelpers.export_image, exportHelpers.image_export_format, {template:'<div/>'}, (...args) => {
         assert.equal(args[4], !inp.retry_params.retouch, 'Retouch keeps model colors; replacement matches the surrounding boundary');
         return compositeFunctions.composite_inpaint(...args);

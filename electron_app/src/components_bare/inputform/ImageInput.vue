@@ -3,7 +3,8 @@
    <div>
 
         <div v-if="form_values[config.id]" @drop.prevent="onDragFile" @dragover.prevent class="image_area" :class="{ crosshair_cur  : is_inpaint }"  style="height: 300px;  border-radius: 5px; padding:5px;">
-            <ImageCanvas :on_img_load="on_img_load" ref="inp_img_canvas" :is_inpaint="is_inpaint" :image_source="form_values[config.id]"  :is_disabled="!is_input_avail" :stroke_size_no="stroke_size_no"  :canvas_id="rand_id" :canvas_d_id="rand_id+'d' "  ></ImageCanvas>
+            <p v-if="image_error" role="alert">Could not open this image. Choose a supported image file.</p>
+            <ImageCanvas @image-error="image_error = true" :on_img_load="on_img_load" ref="inp_img_canvas" :is_inpaint="is_inpaint" :image_source="form_values[config.id]"  :is_disabled="!is_input_avail" :stroke_size_no="stroke_size_no"  :canvas_id="rand_id" :canvas_d_id="rand_id+'d' "  ></ImageCanvas>
         </div>
         <div v-else @drop.prevent="onDragFile" @dragover.prevent @click="open_input_image" class="image_area" :class="{ pointer_cursor  : is_input_avail }" style="height:150px;  border-radius: 5px; padding:5px;">
                 <div style="text-align:center">
@@ -55,6 +56,7 @@ export default {
     data() {
         return {
             is_inpaint: false,
+            image_error: false,
             stroke_size_no: "35",
             is_input_avail: true,
             icon_library:icon_library,
@@ -82,6 +84,7 @@ export default {
         },
 
         on_img_load(){
+            this.image_error = false;
             if(this.config.get_img_size){
                 this.form_values[this.config.id + "__AUX__height"] = this.get_size().height
                 this.form_values[this.config.id + "__AUX__width"] = this.get_size().width
@@ -117,6 +120,10 @@ export default {
         'img_src': {
 
             handler: function() {
+                this.image_error = false;
+                delete this.form_values[this.config.id + '__AUX__source'];
+                delete this.form_values[this.config.id + '__AUX__width'];
+                delete this.form_values[this.config.id + '__AUX__height'];
                 this.is_inpaint = false
             },
             deep: true
