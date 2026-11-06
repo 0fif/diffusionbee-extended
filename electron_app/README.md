@@ -46,7 +46,7 @@ The `serve:ui` and `build:ui` scripts refer to an upstream `AppDemoUI.vue` file 
 
 ## Packaging
 
-`npm run electron:build` requires `BACKEND_BUILD_PATH` pointing to prepared backend resources. Upstream signing also expects `APPLE_ID` and `APPLE_ID_PASSWORD`. No installer or signed build has been verified for Extended. App identifiers, data directories, and the upstream update check must be separated before distributing a forked installer.
+Use `npm run stage:runtime` followed by `npm run package:release` with the prepared local runtime inputs described below. Extended uses its own app identifier and ad-hoc signing; no Apple Developer account or Apple credentials are required. Standalone launch and bundled-engine checks have passed.
 
 ### Rectangular editing follow-up
 

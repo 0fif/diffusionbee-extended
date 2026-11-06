@@ -1,7 +1,7 @@
 {
   "name": "diffusionbee-extended",
-  "version": "0.1.0-beta.2",
-  "build_number": "0029",
+  "version": "0.1.0-beta.3",
+  "build_number": "0030",
   "website": "https://github.com/0fif/diffusionbee-extended",
   "description": "Independent DiffusionBee fork with modern local image generation and editing.",
   "is_dev": false,
